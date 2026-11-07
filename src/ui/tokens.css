@@ -1,0 +1,84 @@
+:root,
+:host {
+  --c-surface: #f6f6f7;
+  --c-surface-raised: #ffffff;
+  --c-surface-sunken: #ececee;
+  --c-text: #1a1b1e;
+  --c-muted: #5e6169;
+  --c-line: #dcdde0;
+  --c-line-strong: #80838b;
+  --c-hover: rgb(26 27 30 / 6%);
+  --c-selected: rgb(10 98 224 / 10%);
+  --c-accent: #0a62e0;
+  --c-accent-solid: #0a62e0;
+  --c-accent-solid-hover: #0853bd;
+  --c-on-accent: #ffffff;
+  --c-apply: #17703f;
+  --c-propose: #8a5a00;
+  --c-missing: #b3261e;
+  --c-changed: #c2570c;
+  --c-focus: #0a62e0;
+  --c-scrim: rgb(20 21 24 / 40%);
+
+  --font-ui: 'Figval Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Figval JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --text-11: 11px;
+  --text-12: 12px;
+  --text-13: 13px;
+  --leading-tight: 1.35;
+
+  --control-h: 28px;
+  --control-h-lg: 32px;
+  --tap-min: 28px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+
+  --radius-control: 5px;
+  --radius-panel: 12px;
+  --radius-pin: 12px 12px 12px 3px;
+
+  --shadow-panel: 0 8px 24px rgb(16 17 20 / 16%), 0 0 0 1px rgb(16 17 20 / 6%);
+
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  :host {
+    --c-surface: #1f2023;
+    --c-surface-raised: #2b2c30;
+    --c-surface-sunken: #17181a;
+    --c-text: #ededef;
+    --c-muted: #a3a6ad;
+    --c-line: #3a3b40;
+    --c-line-strong: #7c7f87;
+    --c-hover: rgb(237 237 239 / 8%);
+    --c-selected: rgb(91 155 255 / 18%);
+    --c-accent: #5b9bff;
+    --c-accent-solid: #2f6bdb;
+    --c-accent-solid-hover: #2a5fc2;
+    --c-on-accent: #ffffff;
+    --c-apply: #5bc98b;
+    --c-propose: #e0b04f;
+    --c-missing: #ff8a80;
+    --c-changed: #f59a5b;
+    --c-focus: #5b9bff;
+    --c-scrim: rgb(0 0 0 / 55%);
+    --shadow-panel: 0 8px 24px rgb(0 0 0 / 45%), 0 0 0 1px rgb(255 255 255 / 8%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  :host {
+    --dur-fast: 0.01ms;
+    --dur-base: 0.01ms;
+  }
+}

@@ -1,0 +1,49 @@
+.fv-root,
+.fv-root * {
+  box-sizing: border-box;
+}
+
+.fv-root {
+  font: 400 var(--text-12) / var(--leading-tight) var(--font-ui);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
+  font-synthesis: none;
+}
+
+.fv-root :where(button, input, textarea, select) {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+.fv-root :where(button) {
+  cursor: pointer;
+}
+
+.fv-root :focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 1px;
+}
+
+.fv-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-11);
+}
+
+.fv-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (forced-colors: active) {
+  .fv-root :focus-visible {
+    outline-color: Highlight;
+  }
+}

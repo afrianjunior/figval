@@ -1,0 +1,111 @@
+.fv-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 360px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-panel);
+  background: var(--c-text);
+  color: var(--c-surface);
+  box-shadow: var(--shadow-panel);
+  animation: fv-rise var(--dur-base) var(--ease-out);
+}
+.fv-toast__action .fv-btn {
+  color: inherit;
+  border-color: transparent;
+  background: transparent;
+  text-decoration: underline;
+}
+.fv-toast .fv-iconbtn {
+  color: inherit;
+}
+.fv-toast .fv-iconbtn:hover:not(:disabled) {
+  background: rgb(128 128 128 / 28%);
+  color: inherit;
+}
+
+.fv-dialog__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--c-scrim);
+}
+.fv-dialog {
+  width: min(360px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--space-4);
+  border-radius: var(--radius-panel);
+  background: var(--c-surface-raised);
+  box-shadow: var(--shadow-panel);
+  animation: fv-rise var(--dur-base) var(--ease-out);
+}
+.fv-dialog:focus {
+  outline: none;
+}
+.fv-dialog:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+.fv-dialog__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-13);
+  font-weight: 600;
+}
+.fv-dialog__body {
+  color: var(--c-muted);
+}
+.fv-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.fv-skeleton {
+  display: block;
+  border-radius: var(--radius-control);
+  background: var(--c-surface-sunken);
+  animation: fv-load 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes fv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fv-load {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fv-toast,
+  .fv-dialog {
+    animation: none;
+  }
+  .fv-skeleton {
+    animation: none;
+  }
+  .fv-btn:active:not(:disabled),
+  button.fv-swatch:hover,
+  .fv-pin__btn:hover,
+  .fv-pin--active .fv-pin__btn {
+    transform: none;
+  }
+  .fv-pin__btn:hover {
+    background: var(--c-accent-solid-hover);
+  }
+}

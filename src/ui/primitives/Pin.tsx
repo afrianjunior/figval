@@ -1,0 +1,28 @@
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { cx } from '../cx';
+
+export interface PinProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Pin text, e.g. the note tag. */
+  readonly children: ReactNode;
+  /** Comment preview shown on hover and focus. */
+  readonly preview?: ReactNode;
+  readonly active?: boolean;
+}
+
+export const Pin = forwardRef<HTMLButtonElement, PinProps>(function Pin(
+  { children, preview, active, className, type = 'button', ...rest },
+  ref,
+) {
+  return (
+    <span className={cx('fv-pin', active && 'fv-pin--active', className)}>
+      <button ref={ref} type={type} className="fv-pin__btn fv-mono" {...rest}>
+        {children}
+      </button>
+      {preview ? (
+        <span role="tooltip" className="fv-pin__preview">
+          {preview}
+        </span>
+      ) : null}
+    </span>
+  );
+});

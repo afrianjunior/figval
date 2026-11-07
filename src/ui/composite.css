@@ -1,0 +1,213 @@
+/* PropertySection / PropertyRow */
+.fv-section {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--c-line);
+}
+.fv-section:first-child {
+  border-top: 0;
+}
+.fv-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--control-h);
+}
+.fv-section__title {
+  margin: 0;
+  font-size: var(--text-13);
+  font-weight: 600;
+}
+.fv-section__body {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fv-prow {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 20px;
+  align-items: center;
+  column-gap: var(--space-2);
+  min-height: var(--control-h);
+}
+.fv-prow__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c-muted);
+}
+.fv-prow--changed .fv-prow__label {
+  color: var(--c-text);
+}
+.fv-prow__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-changed);
+}
+.fv-prow__value {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.fv-prow__reset {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+}
+
+/* ColorRow */
+.fv-color {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+.fv-color__hex {
+  flex: 1;
+  min-width: 0;
+}
+.fv-color__pop {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  display: grid;
+  gap: var(--space-2);
+  width: 184px;
+  padding: var(--space-2);
+  border-radius: var(--radius-control);
+  background: var(--c-surface-raised);
+  box-shadow: var(--shadow-panel);
+}
+.fv-color__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fv-color__native {
+  width: 100%;
+  height: var(--control-h);
+  padding: 0;
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--radius-control);
+  background: none;
+}
+
+/* LayerRow */
+.fv-layer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 30px;
+  padding: 0 var(--space-2) 0 var(--space-1);
+  list-style: none;
+  border-radius: var(--radius-control);
+}
+.fv-layer:hover,
+.fv-layer:focus-within {
+  background: var(--c-hover);
+}
+.fv-layer--selected,
+.fv-layer--selected:hover {
+  background: var(--c-selected);
+}
+.fv-layer__grip {
+  flex: none;
+  margin-left: -2px;
+  color: var(--c-muted);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  cursor: grab;
+}
+.fv-layer:hover .fv-layer__grip,
+.fv-layer:focus-within .fv-layer__grip {
+  opacity: 1;
+}
+.fv-layer__leading {
+  display: inline-flex;
+  flex: none;
+}
+.fv-layer__main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+  padding: 4px var(--space-1);
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.fv-layer__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fv-layer__desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-muted);
+  font-size: var(--text-11);
+}
+.fv-layer__meta {
+  flex: none;
+  color: var(--c-muted);
+  font-size: var(--text-11);
+}
+.fv-layer__trailing {
+  display: inline-flex;
+  flex: none;
+}
+
+/* Pin */
+.fv-pin {
+  position: relative;
+  display: inline-block;
+}
+.fv-pin__btn {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  border: 1.5px solid var(--c-surface-raised);
+  border-radius: var(--radius-pin);
+  background: var(--c-accent-solid);
+  color: var(--c-on-accent);
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgb(16 17 20 / 28%);
+  transform-origin: 0 100%;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.fv-pin__btn:hover,
+.fv-pin--active .fv-pin__btn {
+  transform: scale(1.1);
+}
+.fv-pin__btn:active {
+  transform: scale(1.02);
+}
+.fv-pin__preview {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  bottom: calc(100% + 6px);
+  width: max-content;
+  max-width: 220px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  background: var(--c-surface-raised);
+  color: var(--c-text);
+  box-shadow: var(--shadow-panel);
+  opacity: 0;
+  transform: translateY(2px);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.fv-pin:hover .fv-pin__preview,
+.fv-pin:focus-within .fv-pin__preview {
+  opacity: 1;
+  transform: translateY(0);
+}
