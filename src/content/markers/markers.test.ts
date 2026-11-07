@@ -185,4 +185,40 @@ describe('markers', () => {
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     expect(pins()[0]?.dataset.edge ?? '').toBe('');
   });
+
+  describe('preview flip uses measured height', () => {
+    const topRect = (top: number) => () => ({
+      left: 10,
+      right: 210,
+      top,
+      bottom: top + 40,
+      width: 200,
+      height: 40,
+      x: 10,
+      y: top,
+      toJSON: () => ({}),
+    });
+    const stubPreview = (height: number) => {
+      const preview = pins()[0]?.querySelector('.fv-pin__preview') as HTMLElement;
+      preview.getBoundingClientRect = () => ({ height }) as DOMRect;
+    };
+
+    it('keeps a short preview above when it fits', async () => {
+      const a = document.getElementById('a')!;
+      a.getBoundingClientRect = topRect(70);
+      await run(layer.render([noteFor(a, 1)]));
+      stubPreview(20);
+      pins()[0]?.querySelector('.fv-pin__btn')?.dispatchEvent(new Event('pointerover', { bubbles: true }));
+      expect(pins()[0]?.dataset.edge ?? '').toBe('');
+    });
+
+    it('flips a tall preview below at y=42 once hovered', async () => {
+      const a = document.getElementById('a')!;
+      a.getBoundingClientRect = topRect(66);
+      await run(layer.render([noteFor(a, 1)]));
+      stubPreview(60);
+      pins()[0]?.querySelector('.fv-pin__btn')?.dispatchEvent(new Event('pointerover', { bubbles: true }));
+      expect(pins()[0]?.dataset.edge?.split(' ')).toContain('below');
+    });
+  });
 });
