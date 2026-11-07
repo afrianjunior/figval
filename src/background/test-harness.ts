@@ -1,5 +1,5 @@
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
-import { emptyEdits, StorageUnavailable, TabId, type NoteDraft } from '../domain';
+import { emptyEdits, ShotStoreError, StorageUnavailable, TabId, type NoteDraft } from '../domain';
 import { Messenger, makeMessengerLoopback, type Handler } from '../messaging';
 import { PlatformTest, type PlatformTestConfig, type TabInfo } from '../platform';
 import {
@@ -61,6 +61,7 @@ export const makeHarness = (options: HarnessOptions = {}) => {
   const contentCalls: string[] = [];
   const fault = makeFaultControl();
   const shotLive = new Set<string>();
+  const breakWrites = { sessionReplace: false, settingsPut: false, shotRemoveMany: false };
   const inner: ShotStoreService = makeMemoryShotStore();
   const shotSpy: ShotStoreService = {
     ...inner,
@@ -68,12 +69,14 @@ export const makeHarness = (options: HarnessOptions = {}) => {
       Effect.tap(inner.put(id, blob), () => Effect.sync(() => void shotLive.add(id))),
     remove: (id) => Effect.tap(inner.remove(id), () => Effect.sync(() => void shotLive.delete(id))),
     removeMany: (ids) =>
-      Effect.tap(inner.removeMany(ids), () =>
-        Effect.sync(() => ids.forEach((id) => shotLive.delete(id))),
-      ),
+      breakWrites.shotRemoveMany
+        ? Effect.fail(new ShotStoreError({ op: 'removeMany', cause: 'simulated' }))
+        : Effect.tap(inner.removeMany(ids), () =>
+            Effect.sync(() => ids.forEach((id) => shotLive.delete(id))),
+          ),
   };
+  const uiHideGate = { promise: null as Promise<void> | null };
   const failing = { tag: null as string | null };
-  const breakWrites = { sessionReplace: false, settingsPut: false };
   const brokenWrite = Effect.fail(new StorageUnavailable({ cause: 'simulated write failure' }));
   const faulty = Layer.effect(
     SessionRepo,
@@ -93,6 +96,10 @@ export const makeHarness = (options: HarnessOptions = {}) => {
   );
   const content: Handler = (req) => {
     contentCalls.push(req._tag);
+    if (req._tag === 'UiHide' && uiHideGate.promise !== null) {
+      const wait = uiHideGate.promise;
+      return Effect.promise(() => wait).pipe(Effect.as(undefined));
+    }
     if (req._tag === failing.tag) return Effect.fail({ _tag: 'ContentBroke' });
     if (req._tag === 'Ping') {
       return options.contentAlive === false
@@ -126,6 +133,17 @@ export const makeHarness = (options: HarnessOptions = {}) => {
     run: <A, E>(effect: Effect.Effect<A, E, Layer.Layer.Success<typeof layer>>) =>
       runtime.runPromise(effect),
     contentCalls,
+    /** Makes every later UiHide wait until the returned release is called. */
+    holdUiHide: (): (() => void) => {
+      let release: () => void = () => undefined;
+      uiHideGate.promise = new Promise<void>((resolve) => {
+        release = () => {
+          uiHideGate.promise = null;
+          resolve();
+        };
+      });
+      return release;
+    },
     fault,
     breakWrites,
     shotLive,

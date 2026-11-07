@@ -96,6 +96,32 @@ describe('copy', () => {
     expect(copy.panel.footer.copyMarkdown).toBe('Copy markdown');
   });
 
+  it('gives round-2 review lines a next step', () => {
+    const unsupported =
+      "Figval can't run on this page. Switch to a regular website tab to pick elements.";
+    expect(copy.errors.UnsupportedPage).toBe(unsupported);
+    expect(copy.panel.toolbar.helper.unsupported).toBe(unsupported);
+    expect(copy.panel.toolbar.helper.inactive).toBe('Pick an element or select text on the page.');
+    expect(copy.panel.toolbar.helper.active).toBe(
+      'Click an element or select text on the page to add a note.',
+    );
+    expect(copy.panel.states.notActivated.action).toBe('Show on page');
+    expect(copy.panel.states.otherSession.action).toBe('Open session');
+    expect(copy.errors.CaptureFailed).toBe('The note was saved without a screenshot.');
+    expect(copy.errors.DownloadFailed).toBe(
+      "The download didn't finish. Try again, or use Copy markdown.",
+    );
+    expect(copy.errors.NoteNotFound).toBe(
+      'That note no longer exists. Pick another note from the list.',
+    );
+    expect(copy.tooltip.status.reapplied).toBe(
+      'The element changed, so Figval reapplied your edits.',
+    );
+    expect(copy.tooltip.status.elementGone).toBe(
+      "Figval can't find this element on the page anymore. You can still save your note as a comment.",
+    );
+  });
+
   it('uses one wording for shared failure lines', () => {
     const saveFailed = "The note wasn't saved. Your changes are still here, so try again.";
     expect(copy.errors.NoteSaveError).toBe(saveFailed);
@@ -114,7 +140,7 @@ describe('copy', () => {
     );
     const gone = "Figval can't find this element on the page anymore. The page may have changed.";
     expect(copy.errors.ElementNotFound).toBe(`${gone} The note is still saved.`);
-    const both = `${gone} The note and its screenshot are still saved.`;
+    const both = `${gone} The note is still saved, along with any screenshot.`;
     expect(copy.panel.states.notFound.explanation).toBe(both);
     expect(copy.panel.detail.notFoundExplanation).toBe(both);
     expect(copy.panel.settings.corrupt(2)).toContain("couldn't be read");

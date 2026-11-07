@@ -210,6 +210,26 @@ describe('simple primitives', () => {
     );
   });
 
+  it('Pin Escape dismisses the preview until pointer leave or blur', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <Pin aria-label="Note FV-3" preview="Too loud">
+        FV-3
+      </Pin>,
+    );
+    const root = container.querySelector('.fv-pin') as HTMLElement;
+    await user.tab();
+    expect(root).not.toHaveAttribute('data-dismissed');
+    await user.keyboard('{Escape}');
+    expect(root).toHaveAttribute('data-dismissed');
+    fireEvent.pointerLeave(root);
+    expect(root).not.toHaveAttribute('data-dismissed');
+    await user.keyboard('{Escape}');
+    expect(root).toHaveAttribute('data-dismissed');
+    await user.tab();
+    expect(root).not.toHaveAttribute('data-dismissed');
+  });
+
   it('uiCss is exported as a string', () => {
     expect(typeof uiCss).toBe('string');
   });

@@ -84,3 +84,30 @@ export const setBeforeAfter = async (panel: Page, which: 'before' | 'after'): Pr
   await panel.bringToFront();
   await panel.getByRole('radio', { name: copy.panel.toolbar[which] }).click();
 };
+
+/**
+ * Waits for a colour-scheme change to finish rendering: two animation frames so transitions
+ * start, every finite animation/transition (document and open shadow roots, e.g. `figval-root`)
+ * to finish, then two more frames so the final style is painted.
+ */
+export const settle = async (page: Page): Promise<void> => {
+  await page.evaluate(async () => {
+    const frames = (): Promise<void> =>
+      new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())));
+    const roots = (): (Document | ShadowRoot)[] => {
+      const found: (Document | ShadowRoot)[] = [document];
+      for (const el of document.querySelectorAll('*')) {
+        if (el.shadowRoot) found.push(el.shadowRoot);
+      }
+      return found;
+    };
+    const pending = (): Promise<Animation>[] =>
+      roots()
+        .flatMap((root) => root.getAnimations())
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished);
+    await frames();
+    await Promise.allSettled(pending());
+    await frames();
+  });
+};

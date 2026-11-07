@@ -4,6 +4,7 @@ import { exportTitle } from './title';
 import { INSTRUCTIONS_LINES, RETURN_FORMAT_LINES, TEMPLATE_SESSION_ID } from './llm-constants';
 import { noteBlocks } from './llm-note';
 import type { ExportInput } from './types';
+import { oneLine } from './escape';
 import { isoDateTime, pagesOf } from './util';
 
 const SEP = ' · ';
@@ -27,13 +28,13 @@ const graphBlock = (notes: readonly Note[]): readonly (readonly string[])[] => {
 
 const pageHeading = (page: PageGroup): string => {
   const first = page.notes[0];
-  const title = first === undefined || first.page.title === '' ? page.host : first.page.title;
+  const title = oneLine(first === undefined || first.page.title === '' ? page.host : first.page.title);
   const vp = first?.page.viewport;
   return `## Page: \`${page.path}\` — ${title}${SEP}viewport ${vp?.w ?? 0}×${vp?.h ?? 0}`;
 };
 
 const pageBlocks = (page: PageGroup): readonly (readonly string[])[] => [
-  [pageHeading(page), `URL: ${page.notes[0]?.page.url ?? ''}`],
+  [pageHeading(page), `URL: ${oneLine(page.notes[0]?.page.url ?? '')}`],
   ...page.notes.flatMap((note) => noteBlocks(note, page.path)),
 ];
 

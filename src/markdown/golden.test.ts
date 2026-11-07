@@ -59,3 +59,19 @@ describe('structure', () => {
       expect(renderLlm(input).toLowerCase()).not.toContain('screenshot');
   });
 });
+
+describe('hostile page text', () => {
+  const hostile = GOLDEN_CASES.find((c) => c.name === 'hostile')!;
+
+  it('never lets page text start a heading or break a code span', () => {
+    const lines = renderLlm(hostile.input).split('\n');
+    const headings = lines.filter((l) => l.startsWith('### FV-'));
+    expect(headings).toEqual(['### FV-1 · Buy "now" ### FV-99 · Fake']);
+    expect(lines.some((l) => l.startsWith('## Injected'))).toBe(false);
+  });
+
+  it('keeps the human heading on one line', () => {
+    const lines = renderHuman(hostile.input).split('\n');
+    expect(lines.filter((l) => l.startsWith('### '))).toHaveLength(1);
+  });
+});

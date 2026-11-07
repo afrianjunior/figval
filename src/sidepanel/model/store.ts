@@ -43,6 +43,7 @@ export const createPanelStore = <E>(layer: Layer.Layer<PanelEnv, E>, options: Pa
     boundTabId: options.boundTabId === undefined ? undefined : Schema.decodeSync(TabId)(options.boundTabId),
     debounces: new Map(),
     deleteTimer: null,
+    deletePaused: false,
     flashTimer: null,
   };
 

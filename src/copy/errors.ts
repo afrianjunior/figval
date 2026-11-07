@@ -27,11 +27,12 @@ export const errors: Readonly<Record<ErrorTag, string>> = {
   StorageUnavailable:
     "Figval can't reach browser storage right now. Reload the extension and try again.",
   ShotStoreError: "The screenshot couldn't be saved or loaded. The note is still saved.",
-  UnsupportedPage: "Figval can't run on this page.",
+  UnsupportedPage:
+    "Figval can't run on this page. Switch to a regular website tab to pick elements.",
   PermissionDenied:
     "Site access was declined, so Figval can't pick elements here. Choose Try again to allow it.",
   InjectionFailed: "Figval couldn't start on this page. Reload the page and try again.",
-  CaptureFailed: 'Saved without a screenshot.',
+  CaptureFailed: 'The note was saved without a screenshot.',
   ElementNotFound:
     "Figval can't find this element on the page anymore. The page may have changed. The note is still saved.",
   ClipboardDenied: 'The browser blocked copying. Download the .md file instead.',
@@ -39,10 +40,9 @@ export const errors: Readonly<Record<ErrorTag, string>> = {
   MessageDecodeError: "Figval got a reply it couldn't read. Try again.",
   InvariantViolation: 'Something broke inside Figval. Reload the extension and try again.',
   NoteSaveError: "The note wasn't saved. Your changes are still here, so try again.",
-  NoteNotFound:
-    'That note no longer exists. It may have been deleted. Pick another note from the list.',
+  NoteNotFound: 'That note no longer exists. Pick another note from the list.',
   SessionNotFound:
     'That session no longer exists. Pick another one from the session switcher, or start a new one.',
   InvalidOrder: "The notes couldn't be reordered. Drag the note again.",
-  DownloadFailed: "The download didn't finish. Copy markdown still works.",
+  DownloadFailed: "The download didn't finish. Try again, or use Copy markdown.",
 };

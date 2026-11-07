@@ -1,5 +1,11 @@
 import { Effect, Option } from 'effect';
-import { defaultSettings, type Note, type Settings } from '../../domain';
+import {
+  defaultSettings,
+  type Note,
+  type NoteId,
+  type SessionId,
+  type Settings,
+} from '../../domain';
 import type {
   NoteRepoService,
   SessionRepoService,
@@ -27,10 +33,34 @@ export interface BootDeps {
 
 const orNone = <A, E>(
   effect: Effect.Effect<Option.Option<A>, E>,
-): Effect.Effect<Option.Option<A>> => effect.pipe(
+): Effect.Effect<Option.Option<A>> =>
+  effect.pipe(
     // divergent: boot reads degrade to "nothing stored" so the tooltip still opens.
     Effect.orElseSucceed(() => Option.none<A>()),
   );
+
+/** The active session first, then every other session, so a reopen survives a session switch. */
+const findNote = (
+  deps: BootDeps,
+  activeId: SessionId | null,
+  noteId: NoteId,
+): Effect.Effect<Option.Option<Note>> =>
+  Effect.gen(function* () {
+    if (activeId) {
+      const hit = yield* orNone(deps.notes.get(activeId, noteId));
+      if (Option.isSome(hit)) return hit;
+    }
+    // divergent: an unreadable session list is treated as "no other sessions".
+    const { items } = yield* deps.sessions.list.pipe(
+      Effect.orElseSucceed(() => ({ items: [], corrupt: 0 })),
+    );
+    for (const s of items) {
+      if (s.id === activeId) continue;
+      const hit = yield* orNone(deps.notes.get(s.id, noteId));
+      if (Option.isSome(hit)) return hit;
+    }
+    return Option.none<Note>();
+  });
 
 /** Reads settings, the next seq (or the note being reopened) and any stored draft. Storage errors degrade to defaults. */
 export const loadBoot = (
@@ -45,10 +75,11 @@ export const loadBoot = (
     const sessionId = settings.activeSessionId;
     const session = sessionId ? yield* orNone(deps.sessions.get(sessionId)) : Option.none();
     if (opts.mode === 'reopen') {
-      const found =
-        sessionId && opts.noteId
-          ? yield* orNone(deps.notes.get(sessionId, opts.noteId))
-          : Option.none<Note>();
+      const found = opts.noteId
+        ? yield* findNote(deps, sessionId, opts.noteId)
+        : Option.none<Note>();
+      if (Option.isNone(found))
+        yield* Effect.logWarning('figval: note to reopen not found', opts.noteId);
       return Option.match(found, {
         onNone: () => null,
         onSome: (note): Boot => ({ settings, seq: note.seq, note, resume: null }),

@@ -68,77 +68,80 @@ export function TooltipView(props: TooltipViewProps) {
   };
 
   return (
-    <div
-      role="dialog"
-      aria-label={t.header.provisionalId(state.seq)}
-      className="fv-tip"
-      data-side={props.side}
-      onKeyDown={onKeyDown}
-    >
-      <Header
-        seq={state.seq}
-        label={state.label}
-        onLabel={(value) => dispatch({ type: 'label', value })}
-        onClose={props.onRequestClose}
-        onDragMove={props.onDragMove}
-        onDragEnd={props.onDragEnd}
-      />
-      {state.resume ? (
-        <div className="fv-tip__resume" role="status">
-          <span>{t.draft.resume(t.header.provisionalId(state.resume.seq))}</span>
-          <Button variant="ghost" onClick={props.onResume}>
-            {t.draft.resumeAction}
-          </Button>
-          <Button variant="ghost" onClick={props.onDiscardDraft}>
-            {t.draft.discardAction}
-          </Button>
-        </div>
-      ) : null}
-      <TabBar
-        tab={gone ? 'comment' : state.tab}
-        editDisabled={gone}
-        onChange={(value) => dispatch({ type: 'tab', value })}
-      />
-      {offscreen ? (
-        <Button variant="ghost" className="fv-tip__offscreen" onClick={props.onScrollToElement}>
-          {offscreen === 'above' ? t.scroll.above : t.scroll.below}
-        </Button>
-      ) : null}
-      {gone ? (
-        <p role="status" className="fv-tip__note fv-tip__note--warn">
-          {t.status.elementGone}
-        </p>
-      ) : null}
-      {state.elementStatus === 'reapplied' ? (
-        <p role="status" className="fv-tip__note">
-          {t.status.reapplied}
-        </p>
-      ) : null}
+    <>
+      <span className="fv-tip__notch" data-side={props.side ?? 'dock'} aria-hidden="true" />
       <div
-        role="tabpanel"
-        id="fv-tip-panel"
-        aria-labelledby={`fv-tip-tab-${state.tab}`}
-        className="fv-tip__body"
+        role="dialog"
+        aria-label={t.header.provisionalId(state.seq)}
+        className="fv-tip"
+        data-side={props.side}
+        onKeyDown={onKeyDown}
       >
-        {state.tab === 'comment' || gone ? (
-          <CommentTab state={state} dispatch={dispatch} commentRef={commentRef} />
-        ) : (
-          <EditTab
-            state={state}
-            dispatch={dispatch}
-            swatches={props.swatches}
-            selector={props.selector}
-            onTextActive={props.onTextActive}
-            onHoverSimilar={props.onHoverSimilar}
-          />
-        )}
+        <Header
+          seq={state.seq}
+          label={state.label}
+          onLabel={(value) => dispatch({ type: 'label', value })}
+          onClose={props.onRequestClose}
+          onDragMove={props.onDragMove}
+          onDragEnd={props.onDragEnd}
+        />
+        {state.resume ? (
+          <div className="fv-tip__resume" role="status">
+            <span>{t.draft.resume(t.header.provisionalId(state.resume.seq))}</span>
+            <Button variant="ghost" onClick={props.onResume}>
+              {t.draft.resumeAction}
+            </Button>
+            <Button variant="ghost" onClick={props.onDiscardDraft}>
+              {t.draft.discardAction}
+            </Button>
+          </div>
+        ) : null}
+        <TabBar
+          tab={gone ? 'comment' : state.tab}
+          editDisabled={gone}
+          onChange={(value) => dispatch({ type: 'tab', value })}
+        />
+        {offscreen ? (
+          <Button variant="ghost" className="fv-tip__offscreen" onClick={props.onScrollToElement}>
+            {offscreen === 'above' ? t.scroll.above : t.scroll.below}
+          </Button>
+        ) : null}
+        {gone ? (
+          <p role="status" className="fv-tip__note fv-tip__note--warn">
+            {t.status.elementGone}
+          </p>
+        ) : null}
+        {state.elementStatus === 'reapplied' ? (
+          <p role="status" className="fv-tip__note">
+            {t.status.reapplied}
+          </p>
+        ) : null}
+        <div
+          role="tabpanel"
+          id="fv-tip-panel"
+          aria-labelledby={`fv-tip-tab-${state.tab}`}
+          className="fv-tip__body"
+        >
+          {state.tab === 'comment' || gone ? (
+            <CommentTab state={state} dispatch={dispatch} commentRef={commentRef} />
+          ) : (
+            <EditTab
+              state={state}
+              dispatch={dispatch}
+              swatches={props.swatches}
+              selector={props.selector}
+              onTextActive={props.onTextActive}
+              onHoverSimilar={props.onHoverSimilar}
+            />
+          )}
+        </div>
+        <Footer
+          state={state}
+          onCancel={props.onCancel}
+          onSave={props.onSave}
+          isMac={props.isMac ?? false}
+        />
       </div>
-      <Footer
-        state={state}
-        onCancel={props.onCancel}
-        onSave={props.onSave}
-        isMac={props.isMac ?? false}
-      />
-    </div>
+    </>
   );
 }

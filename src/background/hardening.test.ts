@@ -172,3 +172,13 @@ describe('F6 compensation', () => {
     expect((await sessions()).items).toHaveLength(0);
   });
 });
+
+describe('F9 sender tab wins over req.tabId', () => {
+  it('MissingReport stores under the sender tab, not the claimed tabId', async () => {
+    fresh({ senderTabId: 2, platform: { tabs: [tab(1), tab(2)], activeTabId: tabIdOf(1) } });
+    await send({ _tag: 'MissingReport', ids: [], tabId: tabIdOf(1) });
+    const store = (key: string) => h.run(Effect.flatMap(SessionStore, (s) => s.get(key)));
+    expect(await store(missingKey(tabIdOf(2)))).toEqual([]);
+    expect(await store(missingKey(tabIdOf(1)))).toBeUndefined();
+  });
+});

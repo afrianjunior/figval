@@ -44,25 +44,29 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function S
         )}
       </div>
       <div className="fvp-search__chips">
-        {TYPES.map((tag) => (
-          <Chip key={tag} pressed={filters.types.has(tag)} onPressedChange={() => void actions.toggleType(tag)}>
-            {t.chips[tag]}
+        <div className="fvp-search__group">
+          {TYPES.map((tag) => (
+            <Chip key={tag} pressed={filters.types.has(tag)} onPressedChange={() => void actions.toggleType(tag)}>
+              {t.chips[tag]}
+            </Chip>
+          ))}
+        </div>
+        <div className="fvp-search__group">
+          {INTENTS.map((intent) => (
+            <Chip
+              key={intent}
+              pressed={filters.intents.has(intent)}
+              onPressedChange={() => void actions.toggleIntent(intent)}
+            >
+              {t.chips[intent]}
+            </Chip>
+          ))}
+        </div>
+        <div className="fvp-search__group">
+          <Chip pressed={filters.notFound} onPressedChange={() => void actions.toggleNotFound()}>
+            {t.chips.notFound}
           </Chip>
-        ))}
-        <span className="fvp-search__sep" aria-hidden="true" />
-        {INTENTS.map((intent) => (
-          <Chip
-            key={intent}
-            pressed={filters.intents.has(intent)}
-            onPressedChange={() => void actions.toggleIntent(intent)}
-          >
-            {t.chips[intent]}
-          </Chip>
-        ))}
-        <span className="fvp-search__sep" aria-hidden="true" />
-        <Chip pressed={filters.notFound} onPressedChange={() => void actions.toggleNotFound()}>
-          {t.chips.notFound}
-        </Chip>
+        </div>
       </div>
     </div>
   );

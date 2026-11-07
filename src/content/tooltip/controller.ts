@@ -1,9 +1,9 @@
 import { Effect, Scope } from 'effect';
 import { findSimilar } from '../../locator';
 import { computeBaseline } from '../edit';
-import { acquireOverlayHost, type TooltipOpenOptions } from '../picker';
+import { acquireOverlayHost, type OverlayHost, type TooltipOpenOptions } from '../picker';
 import type { Target } from '../../domain';
-import { makeActions } from './actions';
+import { makeActions, type Actions } from './actions';
 import { loadBoot, type Boot } from './boot';
 import { makeDraftWriter } from './drafts';
 import { startFollow } from './follow';
@@ -16,7 +16,7 @@ import { makePreviewer } from './preview';
 import { makeFork, type SessionCtx, type TooltipDeps } from './session';
 import { makeStore } from './store';
 import { makeTextRow } from './textrow';
-import { mountView } from './view';
+import { mountView, type View } from './view';
 import { watchElement } from './watch';
 
 export type { TooltipDeps } from './session';
@@ -78,22 +78,17 @@ const wireStore = (ctx: SessionCtx, rerender: () => void): (() => void) =>
     rerender();
   });
 
-/** Opens one tooltip; null when the note to reopen no longer exists. */
-export const openSession = (
+const buildCtx = (
   input: SessionInput,
-): Effect.Effect<TooltipHandle | null, never, Scope.Scope> =>
+  boot: Boot,
+  url: string,
+  host: OverlayHost,
+): Effect.Effect<SessionCtx, never, Scope.Scope> =>
   Effect.gen(function* () {
     const { deps, target, opts, scope } = input;
     const doc = opts.anchor.ownerDocument;
-    const url = (doc.defaultView ?? window).location.href;
-    const boot = yield* loadBoot(deps, opts, url, target.selector);
-    if (boot === null) return null;
-    // The element's saved edits are lifted off so the baseline is its true look.
-    if (boot.note) opts.registry.remove(boot.note.id);
-
-    const host = yield* acquireOverlayHost({ doc, resolveAsset: input.resolveAsset });
     const fork = makeFork(scope);
-    const ctx: SessionCtx = {
+    return {
       deps,
       target,
       opts,
@@ -111,6 +106,50 @@ export const openSession = (
       ref: { el: opts.anchor },
       flags: { closed: false },
     };
+  });
+
+/** Esc closes the tooltip; returns the remover. */
+const installKeyHandler = (doc: Document, actions: Actions): (() => void) => {
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    e.preventDefault();
+    e.stopPropagation();
+    actions.requestClose();
+  };
+  doc.addEventListener('keydown', onKey);
+  return () => doc.removeEventListener('keydown', onKey);
+};
+
+const wireFinalizers = (
+  ctx: SessionCtx,
+  view: View,
+  releases: readonly (() => void)[],
+): Effect.Effect<void, never, Scope.Scope> =>
+  Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      ctx.flags.closed = true;
+      releases.forEach((release) => release());
+      ctx.matches.hide();
+      ctx.drafts.cancel();
+      view.unmount();
+    }),
+  );
+
+/** Opens one tooltip; null when the note to reopen no longer exists. */
+export const openSession = (
+  input: SessionInput,
+): Effect.Effect<TooltipHandle | null, never, Scope.Scope> =>
+  Effect.gen(function* () {
+    const { deps, target, opts } = input;
+    const doc = opts.anchor.ownerDocument;
+    const url = (doc.defaultView ?? window).location.href;
+    const boot = yield* loadBoot(deps, opts, url, target.selector);
+    if (boot === null) return null;
+    // The element's saved edits are lifted off so the baseline is its true look.
+    if (boot.note) opts.registry.remove(boot.note.id);
+
+    const host = yield* acquireOverlayHost({ doc, resolveAsset: input.resolveAsset });
+    const ctx = yield* buildCtx(input, boot, url, host);
     const actions = makeActions(ctx);
     const view = mountView(ctx, host, actions);
     ctx.previewer.apply(ctx.store.get());
@@ -129,26 +168,10 @@ export const openSession = (
     view.render(true);
     follower.reposition();
 
-    const unsubscribe = wireStore(ctx, view.render);
-    const stopWatch = watchElement(ctx, follower);
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
-      e.preventDefault();
-      e.stopPropagation();
-      actions.requestClose();
-    };
-    doc.addEventListener('keydown', onKey);
-
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        ctx.flags.closed = true;
-        unsubscribe();
-        stopWatch();
-        doc.removeEventListener('keydown', onKey);
-        ctx.matches.hide();
-        ctx.drafts.cancel();
-        view.unmount();
-      }),
-    );
+    yield* wireFinalizers(ctx, view, [
+      wireStore(ctx, view.render),
+      watchElement(ctx, follower),
+      installKeyHandler(doc, actions),
+    ]);
     return { cancel: actions.cancel, setHidden: host.setHidden };
   });

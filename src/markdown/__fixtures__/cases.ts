@@ -1,6 +1,7 @@
 import type { ExportInput } from '../types';
 import { input as example } from './example.input';
 import { input as hidden } from './hidden.input';
+import { input as hostile } from './hostile.input';
 import { input as multiHost } from './multi-host.input';
 import { input as multiPage } from './multi-page.input';
 import { input as noDependency } from './no-dependency.input';
@@ -24,4 +25,5 @@ export const GOLDEN_CASES: readonly GoldenCase[] = [
   { name: 'hidden', input: hidden },
   { name: 'similar-dependency', input: similarDependency },
   { name: 'no-dependency', input: noDependency },
+  { name: 'hostile', input: hostile },
 ];

@@ -185,6 +185,35 @@
   pointer-events: auto;
   will-change: transform;
 }
+.fv-tip__notch {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface-raised);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.fv-tip__notch[data-side='right'] {
+  top: 18px;
+  left: -4px;
+}
+.fv-tip__notch[data-side='left'] {
+  top: 18px;
+  right: -4px;
+}
+.fv-tip__notch[data-side='below'] {
+  top: -4px;
+  left: 18px;
+}
+.fv-tip__notch[data-side='above'] {
+  bottom: -4px;
+  left: 18px;
+}
+.fv-tip__notch[data-side='dock'] {
+  display: none;
+}
 .fv-tip-match {
   position: fixed;
   top: 0;

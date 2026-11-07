@@ -169,7 +169,7 @@
 .fv-pin__btn {
   display: inline-flex;
   align-items: center;
-  height: 22px;
+  min-height: 24px;
   padding: 0 7px;
   border: 1.5px solid var(--c-surface-raised);
   border-radius: var(--radius-pin);
@@ -214,8 +214,8 @@
   bottom: auto;
   top: calc(100% + 6px);
 }
-.fv-pin:hover .fv-pin__preview,
-.fv-pin:focus-within .fv-pin__preview {
+.fv-pin:not([data-dismissed]):hover .fv-pin__preview,
+.fv-pin:not([data-dismissed]):focus-within .fv-pin__preview {
   opacity: 1;
   transform: translateY(0);
 }

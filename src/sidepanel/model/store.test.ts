@@ -224,6 +224,91 @@ describe('delete with undo', () => {
   });
 });
 
+describe('pausing the undo window', () => {
+  const seed = { sessions: [session], settings, notes: [pageNote(1), pageNote(2)] };
+
+  it('pause holds the delete past 5 s; resume restarts the full window', async () => {
+    const b = await start({ ...withTab, now: 1000 }, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.deleteNote(nid(1));
+    await b.advance(3000);
+    await b.store.actions.pauseUndo();
+    await b.advance(60_000);
+    expect(b.harness.toBackground).toEqual([]);
+    expect(b.model().ui.pendingDelete?.id).toBe(nid(1));
+    await b.store.actions.resumeUndo();
+    await b.advance(4999);
+    expect(b.harness.toBackground).toEqual([]);
+    await b.advance(1);
+    await b.waitFor((m) => m.notes.length === 1 && m.ui.pendingDelete === null);
+    expect(b.harness.toBackground).toEqual([{ _tag: 'NoteDelete', id: nid(1) }]);
+  });
+
+  it('undo works while paused', async () => {
+    const b = await start(withTab, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.deleteNote(nid(1));
+    await b.store.actions.pauseUndo();
+    await b.store.actions.undoDelete();
+    await b.store.actions.resumeUndo();
+    await b.advance(10_000);
+    expect(b.model().ui.pendingDelete).toBeNull();
+    expect(b.harness.toBackground).toEqual([]);
+  });
+
+  it('a paused delete commits when a second delete starts', async () => {
+    const b = await start(withTab, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.deleteNote(nid(1));
+    await b.store.actions.pauseUndo();
+    await b.store.actions.deleteNote(nid(2));
+    expect(b.harness.toBackground).toEqual([{ _tag: 'NoteDelete', id: nid(1) }]);
+    expect(b.model().ui.pendingDelete?.id).toBe(nid(2));
+  });
+
+  it('pause and resume with nothing pending are no-ops', async () => {
+    const b = await start(withTab, {}, seed);
+    await b.store.actions.pauseUndo();
+    await b.store.actions.resumeUndo();
+    await b.advance(10_000);
+    expect(b.harness.toBackground).toEqual([]);
+    expect(b.model().ui.pendingDelete).toBeNull();
+  });
+
+  it('resume without a prior pause does not restart the timer', async () => {
+    const b = await start(withTab, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.deleteNote(nid(1));
+    await b.advance(3000);
+    await b.store.actions.resumeUndo();
+    await b.advance(2000);
+    await b.waitFor((m) => m.ui.pendingDelete === null);
+    expect(b.harness.toBackground).toEqual([{ _tag: 'NoteDelete', id: nid(1) }]);
+  });
+
+  it('commits a paused delete on dispose', async () => {
+    const b = await start(withTab, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.deleteNote(nid(1));
+    await b.store.actions.pauseUndo();
+    await b.store.dispose();
+    expect(b.harness.toBackground).toEqual([{ _tag: 'NoteDelete', id: nid(1) }]);
+    booted = null;
+  });
+
+  it('edit then delete within 400 ms sends no NoteUpdate', async () => {
+    const b = await start(withTab, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.updateNote(nid(1), { comment: 'late' });
+    await b.advance(100);
+    await b.store.actions.deleteNote(nid(1));
+    await b.advance(10_000);
+    await b.waitFor((m) => m.ui.pendingDelete === null);
+    expect(b.harness.toBackground).toEqual([{ _tag: 'NoteDelete', id: nid(1) }]);
+    expect(b.model().ui.errors[`note:${nid(1)}`]).toBeUndefined();
+  });
+});
+
 describe('note autosave', () => {
   const seed = { sessions: [session], settings, notes: [pageNote(1)] };
 

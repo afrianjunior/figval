@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { test, expect } from './fixtures';
-import { commentAndSave, overlay, pickElement, rows } from './helpers';
+import { commentAndSave, overlay, pickElement, rows, settle } from './helpers';
 
 const DIR = resolve(import.meta.dirname, '__screenshots__');
 const WIDTHS = [320, 360, 420] as const;
@@ -18,6 +18,7 @@ test('screenshots: panel widths and tooltip, light and dark', async ({ harness }
 
   for (const scheme of SCHEMES) {
     await panel.emulateMedia({ colorScheme: scheme });
+    await settle(panel);
     for (const width of WIDTHS) {
       await panel.setViewportSize({ width, height: 800 });
       await expect(rows(panel)).toHaveCount(2);
@@ -28,6 +29,7 @@ test('screenshots: panel widths and tooltip, light and dark', async ({ harness }
   await panel.bringToFront();
   for (const scheme of SCHEMES) {
     await page.emulateMedia({ colorScheme: scheme });
+    await settle(page);
     await pickElement(panel, page, 'p.plan-desc');
     const tip = overlay(page).locator('.fv-tip').first();
     await expect

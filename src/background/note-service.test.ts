@@ -1,10 +1,10 @@
-import { Effect } from 'effect';
+import { Duration, Effect } from 'effect';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Note, NoteId, NotePatch, NoteDraft } from '../domain';
 import { Messenger } from '../messaging';
 import { TestRecorder } from '../platform';
 import { NoteRepo, SessionRepo, SettingsRepo } from '../storage';
-import { draftOf, makeHarness, tabIdOf, withTextEdit } from './test-harness';
+import { draftOf, makeHarness, tab, tabIdOf, withTextEdit } from './test-harness';
 
 let h = makeHarness();
 afterEach(() => h.runtime.dispose());
@@ -264,6 +264,70 @@ describe('NoteService.delete', () => {
     const { items } = await sessions();
     expect(items[0]?.noteOrder).toEqual([]);
     expect(h.shotLive.size).toBe(0);
+    const left = await h.run(Effect.flatMap(NoteRepo, (r) => r.list(note.sessionId)));
+    expect(left.items).toHaveLength(0);
+  });
+});
+
+describe('NoteService update outside the write permit', () => {
+  it('a slow capture during NoteUpdate does not block SessionRename', async () => {
+    fresh();
+    const made = await create();
+    const release = h.holdUiHide();
+    const slow = update(made.id, { edits: withTextEdit().edits });
+    await h.run(Effect.sleep(Duration.millis(20)));
+    const renamed = await h
+      .run(
+        Effect.flatMap(Messenger, (m) =>
+          m.toBackground({ _tag: 'SessionRename', id: made.sessionId, name: 'Renamed' }),
+        ),
+      )
+      .then(() => 'done');
+    expect(renamed).toBe('done');
+    release();
+    const saved = await slow;
+    expect(saved.shots.after).not.toBeNull();
+    const { items } = await sessions();
+    expect(items[0]?.name).toBe('Renamed');
+  });
+
+  it('captures the sender tab, not the active tab, and checks its URL', async () => {
+    fresh({
+      senderTabId: 2,
+      platform: {
+        tabs: [tab(1), tab(2, 'https://other.example/x')],
+        activeTabId: tabIdOf(1),
+      },
+    });
+    const note = await create(draftOf(), 1);
+    const edited = await update(note.id, { edits: withTextEdit().edits });
+    expect(edited.shots).toEqual(note.shots);
+  });
+
+  it('discards the new shot when the note changed meanwhile', async () => {
+    fresh();
+    const note = await create();
+    const release = h.holdUiHide();
+    const slow = update(note.id, { edits: withTextEdit().edits });
+    await h.run(Effect.sleep(Duration.millis(20)));
+    await h.run(
+      Effect.flatMap(NoteRepo, (r) => r.replace({ ...note, updatedAt: note.updatedAt + 5 })),
+    );
+    release();
+    const saved = await slow;
+    expect(saved.shots.after).toBeNull();
+    expect(h.shotLive.size).toBe(1);
+  });
+});
+
+describe('NoteService.delete repair', () => {
+  it('still deletes when shot removal fails, and a retry is not needed', async () => {
+    fresh();
+    const note = await create(withTextEdit());
+    h.breakWrites.shotRemoveMany = true;
+    await remove(note.id);
+    const { items } = await sessions();
+    expect(items[0]?.noteOrder).toEqual([]);
     const left = await h.run(Effect.flatMap(NoteRepo, (r) => r.list(note.sessionId)));
     expect(left.items).toHaveLength(0);
   });

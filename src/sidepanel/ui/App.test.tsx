@@ -1,10 +1,11 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { copy } from '../../copy';
 import { defaultSettings } from '../../domain';
 import { initialState } from '../model';
 import { App } from './App';
+import { ERROR_TOAST_MS } from './Toasts';
 import { baseModel, fakeStore, mkNote, mkSession, noteId, session, sessionId, withUi } from './test-support';
 
 const t = copy.panel;
@@ -369,6 +370,86 @@ describe('keyboard, toasts and dialog', () => {
     expect(screen.getByText(copy.toasts.deleted)).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: copy.toasts.undo }));
     expect(fake.actions.undoDelete).toHaveBeenCalled();
+  });
+
+  it('hovering or focusing the Undo toast pauses the countdown, leaving resumes it', () => {
+    const fake = mount(withUi(baseModel({ notes: [mkNote(1)] }), { pendingDelete: { id: noteId(1), until: 5000 } }));
+    const toast = screen.getByText(copy.toasts.deleted).closest('[role="status"]')!;
+    fireEvent.pointerEnter(toast);
+    expect(fake.actions.pauseUndo).toHaveBeenCalledTimes(1);
+    fireEvent.pointerLeave(toast);
+    expect(fake.actions.resumeUndo).toHaveBeenCalledTimes(1);
+    const undo = screen.getByRole('button', { name: copy.toasts.undo });
+    act(() => undo.focus());
+    expect(fake.actions.pauseUndo).toHaveBeenCalledTimes(2);
+    act(() => undo.blur());
+    expect(fake.actions.resumeUndo).toHaveBeenCalledTimes(2);
+  });
+
+  it('the Undo toast stays paused while focus remains after the pointer leaves', () => {
+    const fake = mount(withUi(baseModel({ notes: [mkNote(1)] }), { pendingDelete: { id: noteId(1), until: 5000 } }));
+    const toast = screen.getByText(copy.toasts.deleted).closest('[role="status"]')!;
+    act(() => screen.getByRole('button', { name: copy.toasts.undo }).focus());
+    fireEvent.pointerEnter(toast);
+    fireEvent.pointerLeave(toast);
+    expect(fake.actions.pauseUndo).toHaveBeenCalledTimes(1);
+    expect(fake.actions.resumeUndo?.mock.calls ?? []).toHaveLength(0);
+  });
+
+  describe('error toast auto-dismiss', () => {
+    const errored = () =>
+      mount(withUi(baseModel({ notes: [mkNote(1)] }), { errors: { export: 'ClipboardDenied' } }));
+
+    it('dismisses after the full window when left alone', () => {
+      vi.useFakeTimers();
+      try {
+        const fake = errored();
+        act(() => void vi.advanceTimersByTime(ERROR_TOAST_MS - 1));
+        expect(fake.actions.dismissError?.mock.calls ?? []).toHaveLength(0);
+        act(() => void vi.advanceTimersByTime(1));
+        expect(fake.actions.dismissError).toHaveBeenCalledWith('export');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not dismiss while hovered, then restarts the full window on leave', () => {
+      vi.useFakeTimers();
+      try {
+        const fake = errored();
+        const toast = screen.getByText(copy.toasts.clipboardDenied).closest('[role="status"]')!;
+        act(() => void vi.advanceTimersByTime(ERROR_TOAST_MS - 100));
+        fireEvent.pointerEnter(toast);
+        act(() => void vi.advanceTimersByTime(ERROR_TOAST_MS * 3));
+        expect(fake.actions.dismissError?.mock.calls ?? []).toHaveLength(0);
+        fireEvent.pointerLeave(toast);
+        act(() => void vi.advanceTimersByTime(ERROR_TOAST_MS - 1));
+        expect(fake.actions.dismissError?.mock.calls ?? []).toHaveLength(0);
+        act(() => void vi.advanceTimersByTime(1));
+        expect(fake.actions.dismissError).toHaveBeenCalledWith('export');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not dismiss while focus is inside', () => {
+      vi.useFakeTimers();
+      try {
+        const fake = errored();
+        act(() => screen.getByRole('button', { name: copy.toasts.dismiss }).focus());
+        act(() => void vi.advanceTimersByTime(ERROR_TOAST_MS * 2));
+        expect(fake.actions.dismissError?.mock.calls ?? []).toHaveLength(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  it('chip groups are separate wrap items with no inline separator nodes', () => {
+    const { container } = render(<App store={fakeStore(baseModel({ notes: [1, 2, 3, 4, 5].map((n) => mkNote(n)) })).store} />);
+    const groups = container.querySelectorAll('.fvp-search__chips > .fvp-search__group');
+    expect(groups).toHaveLength(3);
+    expect(container.querySelector('.fvp-search__sep')).toBeNull();
   });
 
   it('clipboard denied offers a download instead', async () => {

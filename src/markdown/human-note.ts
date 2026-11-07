@@ -1,5 +1,6 @@
 import { copy } from '../copy';
 import { formatSeq, hasEdits, type Note, type StyleChange, type TargetAttrs } from '../domain';
+import { escapeQuotes, inlineCode, oneLine, quoted } from './escape';
 import { fenced, nonEmpty } from './util';
 import type { ShotLookup } from './types';
 
@@ -30,7 +31,7 @@ const styleLines = (changes: readonly StyleChange[]): readonly string[] => {
 const changeLines = (note: Note): readonly string[] => {
   const { text, style, hidden, scope, similarCount } = note.edits;
   const lines = [
-    ...(text === null ? [] : [h.textChanged(text.before, text.after)]),
+    ...(text === null ? [] : [h.textChanged(escapeQuotes(oneLine(text.before)), escapeQuotes(oneLine(text.after)))]),
     ...styleLines(style),
     ...(hidden ? [h.elementRemoved] : []),
   ];
@@ -53,13 +54,17 @@ const attrBullets = (attrs: TargetAttrs): readonly string[] =>
     ['aria-label', attrs.ariaLabel],
     ['role', attrs.role],
     ['name', attrs.name],
-  ].flatMap(([key, value]) => (nonEmpty(value) ? [bullet(`\`${key}="${value}"\``)] : []));
+  ].flatMap(([key, value]) => (nonEmpty(value) ? [bullet(inlineCode(`${key}=${quoted(value)}`))] : []));
+
+/** Copy's selector label, with the value fenced safely. */
+const selectorLine = (selector: string): string =>
+  h.technical.selector('').slice(0, -2) + inlineCode(selector);
 
 const technicalBlock = (note: Note): readonly string[] => {
   const { target } = note;
   const list = [
     bullet(h.technical.id(formatSeq(note.seq))),
-    ...(target.selector === '' ? [] : [bullet(h.technical.selector(target.selector))]),
+    ...(target.selector === '' ? [] : [bullet(selectorLine(target.selector))]),
     ...attrBullets(target.attrs),
   ];
   return [
@@ -85,5 +90,5 @@ export const humanNoteBlocks = (
     ...(hasShot(note, shots) ? [[h.screenshotHint(formatSeq(note.seq))]] : []),
     technicalBlock(note),
   ];
-  return [[`### ${h.noteHeading(index, note.target.label)}`, ...first], ...rest];
+  return [[`### ${h.noteHeading(index, oneLine(note.target.label))}`, ...first], ...rest];
 };

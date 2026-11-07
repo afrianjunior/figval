@@ -23,14 +23,14 @@ import {
 
 const decodeTabId = Schema.decodeUnknownOption(TabId);
 
-/** Message tab, else the tab that sent it, else the active tab (the sender may not be focused). */
+/** The tab that sent the message; undefined for extension pages, which fall back to `req.tabId`. */
 const senderTab = (ctx: HandlerContext): TabId | undefined =>
   Option.getOrUndefined(Option.flatMap(Option.fromNullable(ctx.senderTabId), decodeTabId));
 
 const reportMissing = (req: Extract<Request, { _tag: 'MissingReport' }>, ctx: HandlerContext) =>
   Effect.gen(function* () {
     const active = Option.map(yield* (yield* Tabs).queryActive, (tab) => tab.id);
-    const tabId = req.tabId ?? senderTab(ctx) ?? Option.getOrUndefined(active);
+    const tabId = senderTab(ctx) ?? req.tabId ?? Option.getOrUndefined(active);
     if (tabId === undefined) return;
     yield* (yield* SessionStore).set(missingKey(tabId), req.ids);
   });
@@ -54,9 +54,9 @@ type Dispatched = Effect.Effect<unknown, { readonly _tag: string }, HandleEnv>;
 const dispatch = (req: Request, ctx: HandlerContext, lock: Lock): Dispatched => {
   switch (req._tag) {
     case 'NoteCreate':
-      return createNote(req.draft, req.tabId ?? senderTab(ctx), req.rect, lock);
+      return createNote(req.draft, senderTab(ctx) ?? req.tabId, req.rect, lock);
     case 'NoteUpdate':
-      return updateNote(req.id, req.patch);
+      return updateNote(req.id, req.patch, senderTab(ctx), lock);
     case 'NoteDelete':
       return deleteNote(req.id);
     case 'SessionCreate':
@@ -95,9 +95,8 @@ export const handle = (
 ): Effect.Effect<unknown, HandlerError, HandleEnv> =>
   dispatch(req, ctx, lock).pipe(Effect.mapError(toReplyError));
 
-/** Requests that read-modify-write storage; NoteCreate takes the lock itself, after its capture. */
+/** Requests that read-modify-write storage; NoteCreate and NoteUpdate take the lock themselves, after their capture. */
 const SERIALISED = new Set<Request['_tag']>([
-  'NoteUpdate',
   'NoteDelete',
   'SessionCreate',
   'SessionRename',

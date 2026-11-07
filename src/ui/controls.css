@@ -72,8 +72,8 @@
     color var(--dur-fast) var(--ease-out);
 }
 .fv-iconbtn--xs {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 .fv-iconbtn:hover:not(:disabled) {
   background: var(--c-hover);
@@ -367,6 +367,9 @@
   background: transparent;
   outline: none;
 }
+.fv-scrub .fv-scrub__input:focus-visible {
+  outline: none;
+}
 .fv-scrub__unit {
   color: var(--c-muted);
   font-size: var(--text-11);
@@ -467,4 +470,14 @@ button.fv-swatch:active {
   color: var(--c-muted);
   font-family: var(--font-kbd);
   font-size: var(--text-11);
+}
+.fv-btn .fv-kbd {
+  color: inherit;
+}
+.fv-btn--ghost .fv-kbd,
+.fv-btn--secondary .fv-kbd {
+  color: var(--c-muted);
+}
+.fv-btn--primary .fv-kbd {
+  color: var(--c-on-accent);
 }

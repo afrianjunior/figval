@@ -17,6 +17,8 @@ export interface EffectActions {
   readonly flushNote: Act<[id: NoteId]>;
   readonly deleteNote: Act<[id: NoteId]>;
   readonly undoDelete: Act;
+  readonly pauseUndo: Act;
+  readonly resumeUndo: Act;
   readonly reorder: Act<[ids: readonly NoteId[]]>;
   readonly createSession: Act<[name?: string]>;
   readonly activateSession: Act<[id: SessionId]>;
@@ -58,6 +60,8 @@ export const makeEffectActions = (ctx: Ctx): EffectActions => ({
   flushNote: (id) => notes.flushNote(ctx, id),
   deleteNote: (id) => notes.deleteNote(ctx, id),
   undoDelete: () => notes.undoDelete(ctx),
+  pauseUndo: () => notes.pauseUndo(ctx),
+  resumeUndo: () => notes.resumeUndo(ctx),
   reorder: (ids) => notes.reorder(ctx, ids),
   createSession: (name) => ui.createSession(ctx, name),
   activateSession: (id) => ui.activateSession(ctx, id),

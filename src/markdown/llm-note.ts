@@ -7,7 +7,8 @@ import {
   type Note,
   type TargetAttrs,
 } from '../domain';
-import { fenced, nonEmpty } from './util';
+import { escapeQuotes, inlineCode, oneLine, quoted } from './escape';
+import { fenceFor, nonEmpty } from './util';
 import { styleTable } from './table';
 import { verifyLine } from './verify';
 
@@ -21,7 +22,7 @@ const scopeText = (note: Note): string =>
 
 const headerTags = (note: Note): readonly string[] => {
   const list = tags(note);
-  return list.length === 0 ? [] : [list.map((t) => `\`${t}\``).join(' ')];
+  return list.length === 0 ? [] : [list.map((t) => inlineCode(t)).join(' ')];
 };
 
 const headerLine = (note: Note): string =>
@@ -49,35 +50,37 @@ const attrPairs = (attrs: TargetAttrs): readonly string[] =>
     ['aria-label', attrs.ariaLabel],
     ['role', attrs.role],
     ['name', attrs.name],
-  ].flatMap(([key, value]) => (nonEmpty(value) ? [`\`${key}="${value}"\``] : []));
+  ].flatMap(([key, value]) => (nonEmpty(value) ? [inlineCode(`${key}=${quoted(value)}`)] : []));
 
 const stepText = (step: DomStep): string => {
-  const id = nonEmpty(step.id) ? `#${step.id}` : '';
-  const classes = step.classes.map((c) => `.${c}`).join('');
-  const testid = nonEmpty(step.testid) ? `[data-testid="${step.testid}"]` : '';
+  const id = nonEmpty(step.id) ? `#${oneLine(step.id)}` : '';
+  const classes = step.classes.map((c) => `.${oneLine(c)}`).join('');
+  const testid = nonEmpty(step.testid) ? `[data-testid=${quoted(step.testid)}]` : '';
   const nth = step.nth === undefined ? '' : `:nth-of-type(${step.nth})`;
   return `${step.tag}${id}${classes}${testid}${nth}`;
 };
 
-const domPathLines = (path: readonly DomStep[]): readonly string[] => [
-  '- DOM path:',
-  '  ```',
-  ...path.map((step, i) => (i === 0 ? '  ' : `${' '.repeat(2 + 2 * i)}${ARROW} `) + stepText(step)),
-  '  ```',
-];
+const domPathLines = (path: readonly DomStep[]): readonly string[] => {
+  const rows = path.map(
+    (step, i) => (i === 0 ? '  ' : `${' '.repeat(2 + 2 * i)}${ARROW} `) + stepText(step),
+  );
+  const fence = `  ${fenceFor(rows.join('\n'))}`;
+  return ['- DOM path:', fence, ...rows, fence];
+};
 
 const locateLines = (note: Note): readonly string[] => {
   const { target } = note;
   const lines: string[] = [];
-  if (target.text !== '') lines.push(`- Text: "${target.text}"`);
+  if (target.text !== '') lines.push(`- Text: ${quoted(target.text)}`);
   if (target.selection !== null) {
     const { text, before, after } = target.selection;
-    lines.push(`- Selected text: "${text}"`, `- Context: "…${before}**${text}**${after}…"`);
+    lines.push(`- Selected text: ${quoted(text)}`,
+      `- Context: "…${escapeQuotes(before)}**${escapeQuotes(text)}**${escapeQuotes(after)}…"`);
   }
   const attrs = attrPairs(target.attrs);
   if (attrs.length > 0) lines.push(`- Attributes: ${attrs.join(', ')}`);
   if (target.domPath.length > 0) lines.push(...domPathLines(target.domPath));
-  if (target.selector !== '') lines.push(`- Selector: \`${target.selector}\``);
+  if (target.selector !== '') lines.push(`- Selector: ${inlineCode(target.selector)}`);
   return ['**Locate**', ...lines];
 };
 
@@ -85,7 +88,7 @@ const locateLines = (note: Note): readonly string[] => {
 const changeLines = (note: Note): readonly string[] => {
   const { text, style, hidden } = note.edits;
   const bullets = [
-    ...(text === null ? [] : [`- Text: \`${text.before}\` → \`${text.after}\``]),
+    ...(text === null ? [] : [`- Text: ${inlineCode(text.before)} → ${inlineCode(text.after)}`]),
     ...(hidden ? ['- Remove this element.'] : []),
   ];
   const table = style.length > 0 ? styleTable(style) : [];
@@ -94,12 +97,17 @@ const changeLines = (note: Note): readonly string[] => {
   return ['**Change**', ...bullets, ...gap, ...table];
 };
 
+const fencedHtml = (html: string): readonly string[] => {
+  const fence = fenceFor(html);
+  return [`${fence}html`, html, fence];
+};
+
 const htmlLines = (note: Note): readonly string[] =>
-  note.target.html === '' ? [] : ['**HTML**', ...fenced('html', note.target.html)];
+  note.target.html === '' ? [] : ['**HTML**', ...fencedHtml(note.target.html)];
 
 /** One `### FV-n` section, as paragraphs separated by a blank line when joined. */
 export const noteBlocks = (note: Note, pagePath: string): readonly (readonly string[])[] => {
-  const heading = `### ${formatSeq(note.seq)}${SEP}${note.target.label}`;
+  const heading = `### ${formatSeq(note.seq)}${SEP}${oneLine(note.target.label)}`;
   return [
     [heading, headerLine(note)],
     ...whyLines(note).map((l) => [l]),

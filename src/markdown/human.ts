@@ -1,5 +1,6 @@
 import { copy, formatLongDate } from '../copy';
 import { tags, type Note, type PageGroup } from '../domain';
+import { oneLine } from './escape';
 import { humanNoteBlocks } from './human-note';
 import { exportTitle } from './title';
 import type { ExportInput } from './types';
@@ -40,7 +41,7 @@ const metaBlock = (input: ExportInput, pages: readonly PageGroup[]): readonly st
 
 const pageTitle = (page: PageGroup): string => {
   const title = page.notes[0]?.page.title ?? '';
-  return title === '' ? page.host : title;
+  return oneLine(title === '' ? page.host : title);
 };
 
 interface Numbered {

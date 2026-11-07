@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { copy } from '../../copy';
 import { Button, Toast } from '../../ui';
 import type { ErrorKey, PanelStateTag, Shell } from '../model';
 import { usePanel } from './context';
+import { usePauseHandlers } from './usePause';
 
 const t = copy.toasts;
 export const ERROR_TOAST_MS = 8000;
@@ -22,13 +23,19 @@ const FLASH_MESSAGES: Readonly<Record<string, string>> = {
 
 function ErrorToast({ errorKey, tag }: { readonly errorKey: ErrorKey; readonly tag: keyof typeof copy.errors }) {
   const { actions } = usePanel();
+  const [paused, setPaused] = useState(false);
+  const pause = useCallback(() => setPaused(true), []);
+  const resume = useCallback(() => setPaused(false), []);
+  const pauseHandlers = usePauseHandlers(pause, resume);
   useEffect(() => {
+    if (paused) return undefined;
     const timer = setTimeout(() => void actions.dismissError(errorKey), ERROR_TOAST_MS);
     return () => clearTimeout(timer);
-  }, [actions, errorKey, tag]);
+  }, [actions, errorKey, tag, paused]);
   const denied = tag === 'ClipboardDenied';
   return (
     <Toast
+      {...pauseHandlers}
       onClose={() => void actions.dismissError(errorKey)}
       closeLabel={t.dismiss}
       message={denied ? t.clipboardDenied : copy.errors[tag]}
@@ -49,24 +56,32 @@ function ErrorToast({ errorKey, tag }: { readonly errorKey: ErrorKey; readonly t
   );
 }
 
-export function Toasts({ shell, view }: { readonly shell: Shell; readonly view: PanelStateTag }) {
+function UndoToast() {
   const { actions } = usePanel();
+  const pause = useCallback(() => void actions.pauseUndo(), [actions]);
+  const resume = useCallback(() => void actions.resumeUndo(), [actions]);
+  const pauseHandlers = usePauseHandlers(pause, resume);
+  return (
+    <Toast
+      {...pauseHandlers}
+      message={t.deleted}
+      action={
+        <Button size="sm" onClick={() => void actions.undoDelete()}>
+          {t.undo}
+        </Button>
+      }
+    />
+  );
+}
+
+export function Toasts({ shell, view }: { readonly shell: Shell; readonly view: PanelStateTag }) {
   const errors = (Object.entries(shell.errors) as [ErrorKey, keyof typeof copy.errors][]).filter(
     ([key]) => !inline(key, view),
   );
   const flash = shell.flashId === null ? undefined : FLASH_MESSAGES[shell.flashId];
   return (
     <div className="fvp-toasts" aria-live="polite">
-      {shell.pendingDelete === null ? null : (
-        <Toast
-          message={t.deleted}
-          action={
-            <Button size="sm" onClick={() => void actions.undoDelete()}>
-              {t.undo}
-            </Button>
-          }
-        />
-      )}
+      {shell.pendingDelete === null ? null : <UndoToast />}
       {flash === undefined ? null : <Toast message={flash} />}
       {errors.map(([key, tag]) => (
         <ErrorToast key={key} errorKey={key} tag={tag} />

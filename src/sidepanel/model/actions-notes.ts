@@ -48,9 +48,20 @@ export const flushNote = (ctx: Ctx, id: NoteId): Effect.Effect<void, never, Mess
 export const flushAllNotes = (ctx: Ctx): Effect.Effect<void, never, Messenger> =>
   Effect.forEach([...ctx.debounces.keys()], (id) => flushNote(ctx, id), { discard: true });
 
+/** Drops a note's waiting autosave so it cannot reach the background after the delete. */
+const cancelDebounce = (ctx: Ctx, id: NoteId): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    const pending = ctx.debounces.get(id);
+    if (pending === undefined) return;
+    ctx.debounces.delete(id);
+    yield* Fiber.interrupt(pending.fiber);
+  });
+
 const commitDelete = (ctx: Ctx, id: NoteId): Effect.Effect<void, never, Messenger> =>
   Effect.gen(function* () {
     ctx.deleteTimer = null;
+    ctx.deletePaused = false;
+    yield* cancelDebounce(ctx, id);
     const messenger = yield* Messenger;
     yield* messenger.toBackground({ _tag: 'NoteDelete', id });
   }).pipe(
@@ -60,13 +71,24 @@ const commitDelete = (ctx: Ctx, id: NoteId): Effect.Effect<void, never, Messenge
     ),
   );
 
-/** Sends the delete that is waiting on its Undo timer, now. */
+const startDeleteTimer = (ctx: Ctx, id: NoteId): Effect.Effect<void, never, Messenger> =>
+  Effect.gen(function* () {
+    ctx.deleteTimer = yield* Effect.sleep(UNDO_WINDOW_MS).pipe(
+      Effect.zipRight(commitDelete(ctx, id)),
+      Effect.forkIn(ctx.scope),
+    );
+  });
+
+/** True while a delete waits on its Undo window, running or paused. */
+const isUndoOpen = (ctx: Ctx): boolean => ctx.deleteTimer !== null || ctx.deletePaused;
+
+/** Sends the delete that is waiting on its Undo timer (running or paused), now. */
 export const commitPendingDelete = (ctx: Ctx): Effect.Effect<void, never, Messenger> =>
   Effect.gen(function* () {
     const pending = (yield* getState(ctx)).ui.pendingDelete;
+    if (pending === null || !isUndoOpen(ctx)) return;
     const timer = ctx.deleteTimer;
-    if (pending === null || timer === null) return;
-    yield* Fiber.interrupt(timer);
+    if (timer !== null) yield* Fiber.interrupt(timer);
     yield* commitDelete(ctx, pending.id);
   });
 
@@ -74,6 +96,7 @@ export const commitPendingDelete = (ctx: Ctx): Effect.Effect<void, never, Messen
 export const deleteNote = (ctx: Ctx, id: NoteId): Effect.Effect<void, never, PanelEnv> =>
   Effect.gen(function* () {
     yield* commitPendingDelete(ctx);
+    yield* cancelDebounce(ctx, id);
     const now = yield* nowMs;
     yield* update(ctx, (s) =>
       withUi(withoutError(s, 'delete'), {
@@ -82,19 +105,41 @@ export const deleteNote = (ctx: Ctx, id: NoteId): Effect.Effect<void, never, Pan
         ...(s.ui.detailId === id ? { view: 'list' as const, detailId: null } : {}),
       }),
     );
-    ctx.deleteTimer = yield* Effect.sleep(UNDO_WINDOW_MS).pipe(
-      Effect.zipRight(commitDelete(ctx, id)),
-      Effect.forkIn(ctx.scope),
-    );
+    yield* startDeleteTimer(ctx, id);
   });
 
 export const undoDelete = (ctx: Ctx): Effect.Effect<void> =>
   Effect.gen(function* () {
+    if (!isUndoOpen(ctx)) return;
+    const timer = ctx.deleteTimer;
+    ctx.deleteTimer = null;
+    ctx.deletePaused = false;
+    if (timer !== null) yield* Fiber.interrupt(timer);
+    yield* update(ctx, (s) => withUi(s, { pendingDelete: null }));
+  });
+
+/** Holds the Undo timer (toast hovered or focused) without committing the delete. */
+export const pauseUndo = (ctx: Ctx): Effect.Effect<void> =>
+  Effect.gen(function* () {
     const timer = ctx.deleteTimer;
     if (timer === null) return;
     ctx.deleteTimer = null;
+    ctx.deletePaused = true;
     yield* Fiber.interrupt(timer);
-    yield* update(ctx, (s) => withUi(s, { pendingDelete: null }));
+  });
+
+/** Restarts the Undo timer with the full window after a pause. */
+export const resumeUndo = (ctx: Ctx): Effect.Effect<void, never, PanelEnv> =>
+  Effect.gen(function* () {
+    if (!ctx.deletePaused) return;
+    ctx.deletePaused = false;
+    const pending = (yield* getState(ctx)).ui.pendingDelete;
+    if (pending === null) return;
+    const now = yield* nowMs;
+    yield* update(ctx, (s) =>
+      s.ui.pendingDelete === null ? s : withUi(s, { pendingDelete: { id: pending.id, until: now + UNDO_WINDOW_MS } }),
+    );
+    yield* startDeleteTimer(ctx, pending.id);
   });
 
 const persistOrder = (ctx: Ctx, ids: readonly NoteId[], session: Session) =>

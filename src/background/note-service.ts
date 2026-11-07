@@ -174,67 +174,103 @@ const applyPatch = (note: Note, patch: NotePatch, now: number): Note => ({
 const editsChanged = (before: Note, after: Note): boolean =>
   JSON.stringify(before.edits) !== JSON.stringify(after.edits);
 
-/** The page is open in the active tab: only then does a fresh shot show the edited page. */
-const activeTabOnPage = (note: Note) =>
-  Effect.flatMap(Tabs, (tabs) => tabs.queryActive).pipe(
+/** The sender tab (else the active tab), only when it shows the note's page: a fresh shot then shows the edited page. */
+const tabOnPage = (note: Note, tabId: TabId | undefined) =>
+  resolveTab(tabId).pipe(
     Effect.map(
       Option.filter((tab) => normalizePageKey(tab.url) === normalizePageKey(note.page.url)),
     ),
   );
+
+/** What the update does to `shots.after`; decided outside the permit, applied inside it. */
+type AfterPlan =
+  | { readonly kind: 'keep' }
+  | { readonly kind: 'drop' }
+  | { readonly kind: 'replace'; readonly id: ShotId; readonly created: boolean };
+
+const keep: AfterPlan = { kind: 'keep' };
 
 const putAfter = (existing: ShotId | null, blob: Blob) =>
   Effect.gen(function* () {
     const store = yield* ShotStore;
     if (existing !== null) {
       yield* store.replace(existing, blob);
-      return existing;
+      return { kind: 'replace', id: existing, created: false } satisfies AfterPlan;
     }
     const id = yield* (yield* Ids).shotId;
     yield* store.put(id, blob);
-    return id;
+    return { kind: 'replace', id, created: true } satisfies AfterPlan;
   });
 
-const dropAfter = (note: Note) =>
+const planAfter = (note: Note, edited: Note, tabId: TabId | undefined) =>
   Effect.gen(function* () {
-    if (note.shots.after !== null) yield* (yield* ShotStore).remove(note.shots.after);
-    return { ...note.shots, after: null } satisfies Note['shots'];
-  });
-
-const recaptureAfter = (note: Note, edited: Note) =>
-  Effect.gen(function* () {
-    if (!hasEdits(edited)) return yield* dropAfter(note);
-    const tab = yield* activeTabOnPage(edited);
-    if (Option.isNone(tab)) return note.shots;
+    if (!hasEdits(edited))
+      return note.shots.after === null ? keep : ({ kind: 'drop' } as AfterPlan);
+    const tab = yield* tabOnPage(edited, tabId);
+    if (Option.isNone(tab)) return keep;
     const blob = yield* captureCurrent(captureTarget(tab.value, edited.page));
-    return { ...note.shots, after: yield* putAfter(note.shots.after, blob) };
+    return yield* putAfter(note.shots.after, blob);
   }).pipe(
     // divergent: re-capture is best effort; on any failure keep the old shots
-    Effect.catchAll(() => Effect.succeed(note.shots)),
+    Effect.catchAll(() => Effect.succeed(keep)),
   );
 
-/** F3: apply patch; re-capture `after` only when edits changed; NoteRepo.replace. */
-export const updateNote = (id: NoteId, patch: NotePatch) =>
+const applyPlan = (shots: Note['shots'], plan: AfterPlan): Note['shots'] =>
+  plan.kind === 'keep' ? shots : { ...shots, after: plan.kind === 'drop' ? null : plan.id };
+
+const discardCreated = (plan: AfterPlan) =>
+  plan.kind === 'replace' && plan.created
+    ? Effect.flatMap(ShotStore, (store) => rollback('after shot', store.remove(plan.id)))
+    : Effect.void;
+
+const dropOldAfter = (before: Note, plan: AfterPlan) =>
+  plan.kind === 'drop' && before.shots.after !== null
+    ? Effect.flatMap(ShotStore, (store) =>
+        rollback('after shot', store.remove(before.shots.after!)),
+      )
+    : Effect.void;
+
+/**
+ * F3: [capture outside the permit when edits changed] → [permit: findNote → NoteRepo.replace →
+ * SessionRepo.replace]. A note that changed meanwhile keeps its stored shots; the new shot is discarded.
+ */
+export const updateNote = (
+  id: NoteId,
+  patch: NotePatch,
+  tabId?: TabId,
+  lock: Lock = identityLock,
+) =>
   Effect.gen(function* () {
-    const { session, note } = yield* findNote(id);
+    const { note: seen } = yield* findNote(id);
     const now = yield* (yield* Clock).now;
-    const patched = applyPatch(note, patch, now);
-    const shots = editsChanged(note, patched) ? yield* recaptureAfter(note, patched) : note.shots;
-    const saved: Note = { ...patched, shots };
-    yield* (yield* NoteRepo).replace(saved);
-    yield* (yield* SessionRepo).replace({ ...session, updatedAt: now });
-    return saved;
+    const plan = editsChanged(seen, applyPatch(seen, patch, now))
+      ? yield* planAfter(seen, applyPatch(seen, patch, now), tabId)
+      : keep;
+    const save = Effect.gen(function* () {
+      const { session, note } = yield* findNote(id);
+      const stale = note.updatedAt !== seen.updatedAt;
+      const saved: Note = {
+        ...applyPatch(note, patch, now),
+        shots: stale ? note.shots : applyPlan(note.shots, plan),
+      };
+      yield* (yield* NoteRepo).replace(saved);
+      yield* (yield* SessionRepo).replace({ ...session, updatedAt: now });
+      yield* stale ? discardCreated(plan) : dropOldAfter(note, plan);
+      return saved;
+    });
+    return yield* lock(save).pipe(Effect.tapError(() => discardCreated(plan)));
   }).pipe(Effect.mapError(saveError));
 
-/** F3: NoteRepo.remove → ShotStore.remove → session.noteOrder without id. */
+/** F3: SessionRepo.replace (id out of noteOrder) → NoteRepo.remove → shots best effort. */
 export const deleteNote = (id: NoteId) =>
   Effect.gen(function* () {
     const { session, note } = yield* findNote(id);
     const now = yield* (yield* Clock).now;
-    yield* (yield* NoteRepo).remove(session.id, id);
-    yield* (yield* ShotStore).removeMany(shotIdsOf(note.shots));
     yield* (yield* SessionRepo).replace({
       ...session,
       noteOrder: session.noteOrder.filter((n) => n !== id),
       updatedAt: now,
     });
+    yield* (yield* NoteRepo).remove(session.id, id);
+    yield* removeShots(note.shots);
   }).pipe(Effect.mapError(saveError));

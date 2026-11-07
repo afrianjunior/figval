@@ -37,6 +37,8 @@ export interface Ctx {
   readonly boundTabId: TabId | undefined;
   readonly debounces: Map<NoteId, PendingPatch>;
   deleteTimer: Fiber.RuntimeFiber<void> | null;
+  /** True while the Undo timer is held (toast hovered/focused); pendingDelete stays set. */
+  deletePaused: boolean;
   flashTimer: Fiber.RuntimeFiber<void> | null;
 }
 

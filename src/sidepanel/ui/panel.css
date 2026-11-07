@@ -127,7 +127,7 @@ body {
 .fvp-note {
   color: var(--c-muted);
 }
-.fvp-note {
+.fvp .fvp-note {
   padding: var(--space-2) var(--space-3);
 }
 .fvp-toolbar .fvp-note {
@@ -191,11 +191,15 @@ body {
   align-items: center;
   gap: var(--space-1);
 }
-.fvp-search__sep {
-  width: 1px;
-  height: 14px;
-  margin: 0 var(--space-1);
-  background: var(--c-line-strong);
+.fvp-search__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+.fvp-search__group + .fvp-search__group {
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--c-line-strong);
 }
 
 /* List */

@@ -9,6 +9,7 @@ import {
   pickElement,
   rows,
   saveEdit,
+  settle,
 } from './helpers';
 
 const DIR = resolve(import.meta.dirname, '__screenshots__');
@@ -44,6 +45,7 @@ test('screenshots: tooltip Edit tab with changed rows, and with the color popove
 
   for (const scheme of SCHEMES) {
     await page.emulateMedia({ colorScheme: scheme });
+    await settle(page);
     await tipReady(page);
     await shoot(page, 'tooltip-edit', scheme);
   }
@@ -53,6 +55,7 @@ test('screenshots: tooltip Edit tab with changed rows, and with the color popove
   await expect(pop).toBeVisible();
   for (const scheme of SCHEMES) {
     await page.emulateMedia({ colorScheme: scheme });
+    await settle(page);
     await expect(pop).toBeVisible();
     await shoot(page, 'tooltip-color', scheme);
   }
@@ -86,6 +89,7 @@ test('screenshots: panel Detail drill-in with text, fill, typography and layout 
   await openDetail(panel, [groupsOf.text, groupsOf.fill, groupsOf.typography, groupsOf.layout]);
   for (const scheme of SCHEMES) {
     await panel.emulateMedia({ colorScheme: scheme });
+    await settle(panel);
     await shoot(panel, 'panel-detail', scheme);
   }
 });
@@ -102,6 +106,7 @@ test('screenshots: panel Detail drill-in with a hidden element', async ({ harnes
   await openDetail(panel, [groupsOf.text, groupsOf.visibility]);
   for (const scheme of SCHEMES) {
     await panel.emulateMedia({ colorScheme: scheme });
+    await settle(panel);
     await shoot(panel, 'panel-detail-hidden', scheme);
   }
 });
@@ -119,6 +124,7 @@ test('screenshots: picker outline with label chip while hovering an element', as
   await expect(chip).toContainText('×');
   for (const scheme of SCHEMES) {
     await page.emulateMedia({ colorScheme: scheme });
+    await settle(page);
     await expect(chip).toBeVisible();
     await shoot(page, 'picker', scheme);
   }
@@ -138,6 +144,7 @@ test('screenshots: pin hover preview, including a pin at the right edge', async 
   const preview = overlay(page).getByRole('tooltip').filter({ hasText: 'Banner copy' });
   for (const scheme of SCHEMES) {
     await page.emulateMedia({ colorScheme: scheme });
+    await settle(page);
     await settled(preview);
     await shoot(page, 'pin-hover', scheme);
   }
@@ -169,6 +176,7 @@ test('screenshots: panel with search bar and an active filter chip', async ({ ha
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
   for (const scheme of SCHEMES) {
     await panel.emulateMedia({ colorScheme: scheme });
+    await settle(panel);
     await expect(rows(panel)).toHaveCount(targets.length);
     await shoot(panel, 'panel-search', scheme);
   }
@@ -180,6 +188,7 @@ test('screenshots: panel first-run state', async ({ harness }) => {
   await expect(panel.getByText(copy.panel.states.firstRun.line)).toBeVisible();
   for (const scheme of SCHEMES) {
     await panel.emulateMedia({ colorScheme: scheme });
+    await settle(panel);
     await shoot(panel, 'panel-firstrun', scheme);
   }
 });
@@ -192,6 +201,7 @@ test('screenshots: panel unsupported-page state', async ({ context, harness }) =
   await expect(panel.getByText(copy.panel.states.unsupported.line)).toBeVisible();
   for (const scheme of SCHEMES) {
     await panel.emulateMedia({ colorScheme: scheme });
+    await settle(panel);
     await shoot(panel, 'panel-unsupported', scheme);
   }
 });

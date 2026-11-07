@@ -19,10 +19,11 @@ export const panel = {
     after: 'After',
     toggleLabel: 'Page view',
     helper: {
-      inactive: 'Pick an element, or select text on the page.',
-      active: 'Click any element on the page, or select text to add a note.',
+      inactive: 'Pick an element or select text on the page.',
+      active: 'Click an element or select text on the page to add a note.',
       picking: 'Click the element you want to note. Esc cancels.',
-      unsupported: "Figval can't run on this page.",
+      unsupported:
+        "Figval can't run on this page. Switch to a regular website tab to pick elements.",
       permissionDeclined:
         "Site access was declined, so Figval can't pick elements here. Choose Try again to allow it.",
       injectionFailed: "Figval couldn't start on this page. Reload the page and try again.",
@@ -66,16 +67,16 @@ export const panel = {
     unsupported: { line: "Figval can't run on this page. Your notes and export still work." },
     notActivated: {
       strip: (n: number): string => `${noteCount(n)} on this page`,
-      action: 'Show',
+      action: 'Show on page',
     },
     otherSession: {
       strip: (n: number, sessionName: string): string => `${noteCount(n)} in "${sessionName}"`,
-      action: 'Open',
+      action: 'Open session',
     },
     notFound: {
       badge: 'not found',
       explanation:
-        "Figval can't find this element on the page anymore. The page may have changed. The note and its screenshot are still saved.",
+        "Figval can't find this element on the page anymore. The page may have changed. The note is still saved, along with any screenshot.",
     },
     noResults: {
       line: (query: string): string => `No notes match "${query}".`,
@@ -120,7 +121,7 @@ export const panel = {
     },
     deleteNote: 'Delete note',
     notFoundExplanation:
-      "Figval can't find this element on the page anymore. The page may have changed. The note and its screenshot are still saved.",
+      "Figval can't find this element on the page anymore. The page may have changed. The note is still saved, along with any screenshot.",
   },
   footer: {
     format: { llm: 'LLM', human: 'Human', label: 'Export format' },

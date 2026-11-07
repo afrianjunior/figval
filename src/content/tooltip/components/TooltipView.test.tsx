@@ -279,3 +279,51 @@ describe('tooltip.css motion and dividers', () => {
     );
   });
 });
+
+describe('anchor notch', () => {
+  const sides = ['right', 'left', 'below', 'above', 'dock'] as const;
+  const renderSide = (side: (typeof sides)[number] | undefined) => {
+    const { container } = render(
+      <TooltipView
+        state={open()}
+        dispatch={() => undefined}
+        swatches={[]}
+        selector="button.btn"
+        offscreen={null}
+        side={side}
+        onSave={() => undefined}
+        onCancel={() => undefined}
+        onRequestClose={() => undefined}
+        onTextActive={() => undefined}
+        onHoverSimilar={() => undefined}
+        onDragMove={() => undefined}
+        onDragEnd={() => undefined}
+        onResume={() => undefined}
+        onDiscardDraft={() => undefined}
+      />,
+    );
+    return container.querySelector('.fv-tip__notch');
+  };
+
+  it.each(sides)('mirrors the %s placement on the notch and the card', (side) => {
+    const notch = renderSide(side);
+    expect(notch).toHaveAttribute('data-side', side);
+    expect(notch).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-side', side);
+  });
+
+  it('treats a missing placement as docked', () => {
+    expect(renderSide(undefined)).toHaveAttribute('data-side', 'dock');
+  });
+
+  it('styles the notch per side, hides it when docked and animates nothing', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/content/tooltip/tooltip.css'), 'utf8');
+    expect(css).toMatch(/\.fv-tip__notch\s*\{[^}]*transform: rotate\(45deg\)/);
+    expect(css).toMatch(/\.fv-tip__notch\s*\{[^}]*var\(--c-surface-raised\)/);
+    for (const side of ['right', 'left', 'below', 'above']) {
+      expect(css).toContain(`.fv-tip__notch[data-side='${side}']`);
+    }
+    expect(css).toMatch(/\.fv-tip__notch\[data-side='dock'\]\s*\{[^}]*display: none/);
+    expect(css).not.toMatch(/\.fv-tip__notch\s*\{[^}]*animation/);
+  });
+});

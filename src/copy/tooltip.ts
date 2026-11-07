@@ -78,8 +78,9 @@ export const tooltip = {
   },
   scroll: { above: '↑ element above', below: '↓ element below' },
   status: {
-    reapplied: 'Element changed, edits re-applied',
-    elementGone: 'This element is gone from the page. You can still save your note as a comment.',
+    reapplied: 'The element changed, so Figval reapplied your edits.',
+    elementGone:
+      "Figval can't find this element on the page anymore. You can still save your note as a comment.",
     saveFailed: "The note wasn't saved. Your changes are still here, so try again.",
     discardConfirm: 'Press Esc again to discard',
   },
