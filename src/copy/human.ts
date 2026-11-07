@@ -20,6 +20,7 @@ export const markdownHuman = {
     `**Date:** ${date} · **Notes:** ${notes} · **Pages:** ${pages}`,
   screenSize: (width: number, height: number): string =>
     `**Screen size during review:** ${width}×${height}`,
+  pageUrl: (url: string): string => `**Page:** ${url}`,
   summaryHeading: 'Summary',
   summary: {
     textChange: (n: number): string => count(n, 'text change', 'text changes'),

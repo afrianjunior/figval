@@ -42,6 +42,12 @@ describe('copy', () => {
     expect(copy.markdownHuman.summary.textChange(2)).toBe('2 text changes');
   });
 
+  it('labels the single-page url for the human export meta line', () => {
+    expect(copy.markdownHuman.pageUrl('https://example.com/pricing')).toBe(
+      '**Page:** https://example.com/pricing',
+    );
+  });
+
   it('interpolates the search query in the empty results line', () => {
     expect(copy.panel.states.noResults.line('xyz')).toBe('No notes match "xyz"');
   });

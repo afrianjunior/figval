@@ -1,1 +1,10 @@
-export {};
+export { buildTarget, buildDomPath, parentTarget, childTarget } from './build';
+export type { BuildOptions } from './build';
+export { findElement, findElementEffect } from './find';
+export { findSimilar } from './similar';
+export type { SimilarResult } from './similar';
+export { autoLabel } from './label';
+export { trimHtml } from './html';
+export { uniqueSelector } from './selector';
+export { isHashedClass, stableClasses } from './hashed';
+export { nearestBlock } from './dom';
