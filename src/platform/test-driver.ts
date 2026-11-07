@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, PubSub, Ref } from 'effect';
 import type { TabId } from '../domain';
-import type { TabInfo } from './types';
+import type { TabInfo, TabUpdate } from './types';
 
 export interface RecordedCall {
   readonly service: string;
@@ -31,11 +31,13 @@ export interface TestDriverService {
   readonly activeTabId: Effect.Effect<TabId | null>;
   readonly tabEvents: PubSub.PubSub<TabInfo>;
   readonly removedEvents: PubSub.PubSub<TabId>;
+  readonly updateEvents: PubSub.PubSub<TabUpdate>;
   readonly commandEvents: PubSub.PubSub<string>;
   readonly actionEvents: PubSub.PubSub<TabInfo>;
   readonly addTab: (tab: TabInfo) => Effect.Effect<void>;
   readonly activate: (id: TabId) => Effect.Effect<void>;
   readonly navigate: (id: TabId, url: string) => Effect.Effect<void>;
+  readonly emitUpdate: (update: TabUpdate) => Effect.Effect<void>;
   readonly removeTab: (id: TabId) => Effect.Effect<void>;
   readonly emitCommand: (name: string) => Effect.Effect<void>;
   readonly clickAction: (id: TabId) => Effect.Effect<void>;
@@ -48,6 +50,7 @@ const makeDriver = (initial: readonly TabInfo[], active: TabId | null) =>
     const state = yield* Ref.make({ tabs: initial, active });
     const tabEvents = yield* PubSub.unbounded<TabInfo>();
     const removedEvents = yield* PubSub.unbounded<TabId>();
+    const updateEvents = yield* PubSub.unbounded<TabUpdate>();
     const commandEvents = yield* PubSub.unbounded<string>();
     const actionEvents = yield* PubSub.unbounded<TabInfo>();
     const find = (id: TabId) =>
@@ -63,6 +66,7 @@ const makeDriver = (initial: readonly TabInfo[], active: TabId | null) =>
       activeTabId: Effect.map(Ref.get(state), (s) => s.active),
       tabEvents,
       removedEvents,
+      updateEvents,
       commandEvents,
       actionEvents,
       addTab: (tab) => Ref.update(state, (s) => ({ ...s, tabs: [...s.tabs, tab] })),
@@ -78,6 +82,7 @@ const makeDriver = (initial: readonly TabInfo[], active: TabId | null) =>
           tabs: s.tabs.filter((t) => t.id !== id),
           active: s.active === id ? null : s.active,
         })).pipe(Effect.zipRight(PubSub.publish(removedEvents, id)), Effect.asVoid),
+      emitUpdate: (update) => PubSub.publish(updateEvents, update).pipe(Effect.asVoid),
       emitCommand: (name) => PubSub.publish(commandEvents, name).pipe(Effect.asVoid),
       clickAction: (id) =>
         find(id).pipe(

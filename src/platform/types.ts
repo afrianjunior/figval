@@ -14,3 +14,10 @@ export interface Rect {
   readonly w: number;
   readonly h: number;
 }
+
+/** One `chrome.tabs.onUpdated` change (any tab, not only the active one). */
+export interface TabUpdate {
+  readonly tabId: number;
+  readonly status?: 'loading' | 'complete';
+  readonly url?: string;
+}

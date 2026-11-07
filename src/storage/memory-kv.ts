@@ -1,6 +1,6 @@
 import { Effect, Stream } from 'effect';
 import { StorageQuotaExceeded, StorageUnavailable } from '../domain';
-import type { KvService, StorageChange } from './types';
+import type { KvService, SessionKvService, StorageChange } from './types';
 
 export type Fault =
   { readonly kind: 'unavailable' } | { readonly kind: 'quota'; readonly bytesInUse: number };
@@ -9,15 +9,23 @@ export type Fault =
 export interface FaultControl {
   readonly set: (fault: Fault | null) => void;
   readonly current: () => Fault | null;
+  /** Number of successful SessionStore.allowContentAccess calls (memory layer). */
+  readonly contentAccessGrants: () => number;
+  readonly recordContentAccess: () => void;
 }
 
 export const makeFaultControl = (): FaultControl => {
   let fault: Fault | null = null;
+  let grants = 0;
   return {
     set: (next) => {
       fault = next;
     },
     current: () => fault,
+    contentAccessGrants: () => grants,
+    recordContentAccess: () => {
+      grants += 1;
+    },
   };
 };
 
@@ -70,3 +78,11 @@ export const makeMemoryKv = (control: FaultControl = makeFaultControl()): KvServ
     ),
   };
 };
+
+/** Memory session store: allowContentAccess is a no-op that is only counted on the control. */
+export const makeMemorySessionKv = (
+  control: FaultControl = makeFaultControl(),
+): SessionKvService => ({
+  ...makeMemoryKv(control),
+  allowContentAccess: Effect.sync(() => control.recordContentAccess()),
+});

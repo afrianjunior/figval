@@ -1,10 +1,13 @@
 import { Chunk, Effect, Fiber, Stream } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { makeAreaKv, type ChromeLike, type StorageAreaLike } from './area-kv';
+import { makeAreaKv, makeSessionKv, type ChromeLike, type StorageAreaLike } from './area-kv';
 
 type Listener = Parameters<ChromeLike['storage']['onChanged']['addListener']>[0];
 
-const makeFakeChrome = (opts: { setError?: Error; bytes?: number } = {}) => {
+const makeFakeChrome = (
+  opts: { setError?: Error; bytes?: number; accessError?: Error; noAccess?: boolean } = {},
+) => {
+  const accessCalls: unknown[] = [];
   const listeners = new Set<Listener>();
   const data = new Map<string, unknown>();
   const area = (): StorageAreaLike => ({
@@ -14,6 +17,14 @@ const makeFakeChrome = (opts: { setError?: Error; bytes?: number } = {}) => {
       Object.entries(items).forEach(([k, v]) => data.set(k, v));
     },
     remove: async (keys) => keys.forEach((k) => data.delete(k)),
+    ...(opts.noAccess
+      ? {}
+      : {
+          setAccessLevel: async (o: { accessLevel: string }) => {
+            accessCalls.push(o);
+            if (opts.accessError) throw opts.accessError;
+          },
+        }),
     getBytesInUse: async () => {
       if (opts.bytes === undefined) throw new Error('no bytes');
       return opts.bytes;
@@ -29,7 +40,7 @@ const makeFakeChrome = (opts: { setError?: Error; bytes?: number } = {}) => {
       },
     },
   };
-  return { chrome, listeners };
+  return { chrome, listeners, accessCalls };
 };
 
 describe('chrome.storage adapter', () => {
@@ -95,5 +106,32 @@ describe('chrome.storage adapter', () => {
     expect(out.subscribed).toBe(1);
     expect(out.changes).toEqual([{ key: 'k', newValue: 2, oldValue: 1 }]);
     expect(out.after).toBe(0);
+  });
+});
+
+describe('session store content access', () => {
+  it('grants TRUSTED_AND_UNTRUSTED_CONTEXTS access', async () => {
+    const { chrome, accessCalls } = makeFakeChrome();
+    await Effect.runPromise(makeSessionKv(() => chrome).allowContentAccess);
+    expect(accessCalls).toEqual([{ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' }]);
+  });
+
+  it('maps a rejection to StorageUnavailable', async () => {
+    const { chrome } = makeFakeChrome({ accessError: new Error('denied') });
+    const err = await Effect.runPromise(
+      Effect.flip(makeSessionKv(() => chrome).allowContentAccess),
+    );
+    expect(err._tag).toBe('StorageUnavailable');
+  });
+
+  it('fails when setAccessLevel is unsupported or chrome is missing', async () => {
+    const { chrome } = makeFakeChrome({ noAccess: true });
+    const unsupported = await Effect.runPromise(
+      Effect.flip(makeSessionKv(() => chrome).allowContentAccess),
+    );
+    const missing = await Effect.runPromise(
+      Effect.flip(makeSessionKv(() => undefined).allowContentAccess),
+    );
+    expect([unsupported._tag, missing._tag]).toEqual(['StorageUnavailable', 'StorageUnavailable']);
   });
 });

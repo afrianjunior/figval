@@ -89,6 +89,25 @@ describe('Tabs test layer', () => {
     expect(active).toBeNull();
   });
 
+  it('streams driver-emitted tab updates', async () => {
+    const seen = await run(
+      Effect.gen(function* () {
+        const tabs = yield* Tabs;
+        const driver = yield* TestDriver;
+        const fiber = yield* Effect.fork(Stream.runCollect(Stream.take(tabs.onUpdated, 2)));
+        yield* settle;
+        yield* driver.emitUpdate({ tabId: 5, status: 'loading', url: 'https://x.test/' });
+        yield* driver.emitUpdate({ tabId: 6, status: 'complete' });
+        return Array.from(yield* Fiber.join(fiber));
+      }),
+      config,
+    );
+    expect(seen).toEqual([
+      { tabId: 5, status: 'loading', url: 'https://x.test/' },
+      { tabId: 6, status: 'complete' },
+    ]);
+  });
+
   it('driver adds tabs', async () => {
     const found = await run(
       Effect.gen(function* () {

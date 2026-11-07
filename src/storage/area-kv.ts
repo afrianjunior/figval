@@ -1,12 +1,13 @@
 import { Effect, Stream } from 'effect';
 import { StorageQuotaExceeded, StorageUnavailable } from '../domain';
-import type { KvService, StorageChange } from './types';
+import type { KvService, SessionKvService, StorageChange } from './types';
 
 export interface StorageAreaLike {
   readonly get: (keys: string) => Promise<Record<string, unknown>>;
   readonly set: (items: Record<string, unknown>) => Promise<void>;
   readonly remove: (keys: string[]) => Promise<void>;
   readonly getBytesInUse: (keys: null) => Promise<number>;
+  readonly setAccessLevel?: (options: { accessLevel: string }) => Promise<void>;
 }
 
 type ChangeMap = Record<string, { newValue?: unknown; oldValue?: unknown }>;
@@ -101,3 +102,22 @@ export const makeAreaKv = (
     ),
   };
 };
+
+const CONTENT_ACCESS_LEVEL = 'TRUSTED_AND_UNTRUSTED_CONTEXTS';
+
+export const makeSessionKv = (
+  getChrome: () => ChromeLike | undefined = () => (globalThis as { chrome?: ChromeLike }).chrome,
+): SessionKvService => ({
+  ...makeAreaKv('session', getChrome),
+  allowContentAccess: resolveChrome(getChrome).pipe(
+    Effect.flatMap((api) => {
+      const grant = api.storage.session.setAccessLevel;
+      return grant === undefined
+        ? Effect.fail(unavailable('chrome.storage.session.setAccessLevel is not available'))
+        : Effect.tryPromise({
+            try: () => grant.call(api.storage.session, { accessLevel: CONTENT_ACCESS_LEVEL }),
+            catch: unavailable,
+          });
+    }),
+  ),
+});

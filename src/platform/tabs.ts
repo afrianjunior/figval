@@ -2,7 +2,7 @@ import { Context, Effect, Layer, Option, Schema, Stream } from 'effect';
 import { TabId, UnsupportedPage } from '../domain';
 import { chromeApi } from './chrome-api';
 import { TestDriver } from './test-driver';
-import type { TabInfo } from './types';
+import type { TabInfo, TabUpdate } from './types';
 
 export interface TabsService {
   /** A tab that cannot be read fails as UnsupportedPage (url unknown, so empty). */
@@ -11,6 +11,8 @@ export interface TabsService {
   /** Emits the active tab when the user switches tabs or the active tab finishes loading/navigates. */
   readonly activeChanges: Stream.Stream<TabInfo>;
   readonly onRemoved: Stream.Stream<TabId>;
+  /** Every tab's status/url changes (not only the active tab). */
+  readonly onUpdated: Stream.Stream<TabUpdate>;
 }
 
 export class Tabs extends Context.Tag('figval/platform/Tabs')<Tabs, TabsService>() {}
@@ -70,6 +72,29 @@ const onRemoved: Stream.Stream<TabId> = Stream.asyncPush<TabId>((emit) =>
   ),
 );
 
+const toUpdate = (tabId: number, change: { status?: string; url?: string }): Option.Option<TabUpdate> => {
+  const status = change.status === 'loading' || change.status === 'complete' ? change.status : undefined;
+  if (status === undefined && change.url === undefined) return Option.none();
+  return Option.some({
+    tabId,
+    ...(status === undefined ? {} : { status }),
+    ...(change.url === undefined ? {} : { url: change.url }),
+  });
+};
+
+const onUpdated: Stream.Stream<TabUpdate> = Stream.asyncPush<TabUpdate>((emit) =>
+  Effect.acquireRelease(
+    Effect.sync(() => {
+      const listener = (tabId: number, change: { status?: string; url?: string }) => {
+        Option.map(toUpdate(tabId, change), emit.single);
+      };
+      chromeApi().tabs.onUpdated.addListener(listener);
+      return listener;
+    }),
+    (listener) => Effect.sync(() => chromeApi().tabs.onUpdated.removeListener(listener)),
+  ),
+);
+
 export const TabsLive: Layer.Layer<Tabs> = Layer.succeed(Tabs, {
   get: (tabId) =>
     Effect.tryPromise({ try: () => chromeApi().tabs.get(tabId), catch: unreadable }).pipe(
@@ -81,6 +106,7 @@ export const TabsLive: Layer.Layer<Tabs> = Layer.succeed(Tabs, {
   ),
   activeChanges,
   onRemoved,
+  onUpdated,
 });
 
 export const TabsTest: Layer.Layer<Tabs, never, TestDriver> = Layer.effect(
@@ -100,5 +126,6 @@ export const TabsTest: Layer.Layer<Tabs, never, TestDriver> = Layer.effect(
     }),
     activeChanges: Stream.fromPubSub(driver.tabEvents),
     onRemoved: Stream.fromPubSub(driver.removedEvents),
+    onUpdated: Stream.fromPubSub(driver.updateEvents),
   })),
 );

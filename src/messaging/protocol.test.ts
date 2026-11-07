@@ -6,8 +6,8 @@ import { sampleReplyValues, sampleRequests } from './fixtures';
 const tags = Object.keys(sampleRequests) as RequestTag[];
 
 describe('protocol', () => {
-  it('covers exactly the 22 messages of the spec', () => {
-    expect(tags).toHaveLength(22);
+  it('covers exactly the 23 messages of the spec', () => {
+    expect(tags).toHaveLength(23);
     expect(Object.keys(replySchemas).sort()).toEqual([...tags].sort());
   });
 
@@ -39,6 +39,20 @@ describe('protocol', () => {
     ['not an object', 'Ping'],
   ])('rejects %s', (_label, raw) => {
     expect(Either.isLeft(Schema.decodeUnknownEither(Request)(raw))).toBe(true);
+  });
+
+  it('keeps NoteCreate.rect optional and rejects a malformed rect', () => {
+    const base = { _tag: 'NoteCreate', draft: sampleRequests.NoteCreate };
+    const draft = (sampleRequests.NoteCreate as { draft: unknown }).draft;
+    expect(Either.isRight(Schema.decodeUnknownEither(Request)({ _tag: 'NoteCreate', draft }))).toBe(true);
+    expect(base._tag).toBe('NoteCreate');
+    expect(Either.isLeft(Schema.decodeUnknownEither(Request)({ _tag: 'NoteCreate', draft, rect: { x: 1, y: 2, w: 'a', h: 4 } }))).toBe(true);
+  });
+
+  it('rejects SessionReorder with a bad note id', () => {
+    const raw = { _tag: 'SessionReorder', id: (sampleRequests.SessionReorder as { id: string }).id, noteOrder: ['nope'] };
+    expect(Either.isLeft(Schema.decodeUnknownEither(Request)(raw))).toBe(true);
+    expect(directionOf('SessionReorder')).toBe('toBackground');
   });
 
   it('rejects a reply that is neither ok nor error', () => {

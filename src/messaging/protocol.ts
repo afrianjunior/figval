@@ -38,14 +38,22 @@ export const MarkersClear = tagged('MarkersClear', {});
 export const Highlight = tagged('Highlight', { noteId: Schema.NullOr(NoteId) });
 export const ScrollTo = tagged('ScrollTo', { noteId: NoteId });
 export const TooltipReopen = tagged('TooltipReopen', { noteId: NoteId });
+/** CSS px, viewport-relative, of the element at save time. */
+const NoteRect = Schema.Struct({ x: Schema.Number, y: Schema.Number, w: Schema.Number, h: Schema.Number });
+
 export const NoteCreate = tagged('NoteCreate', {
   draft: NoteDraft,
+  rect: Schema.optional(NoteRect),
   tabId: Schema.optional(TabId),
 });
 export const NoteUpdate = tagged('NoteUpdate', { id: NoteId, patch: NotePatch });
 export const NoteDelete = tagged('NoteDelete', { id: NoteId });
 export const SessionCreate = tagged('SessionCreate', { name: Schema.optional(Schema.String) });
 export const SessionRename = tagged('SessionRename', { id: SessionId, name: Schema.String });
+export const SessionReorder = tagged('SessionReorder', {
+  id: SessionId,
+  noteOrder: Schema.Array(NoteId),
+});
 export const SessionDelete = tagged('SessionDelete', { id: SessionId });
 export const SessionActivate = tagged('SessionActivate', { id: SessionId });
 export const SettingsUpdate = tagged('SettingsUpdate', { patch: SettingsPatch });
@@ -73,6 +81,7 @@ export const Request = Schema.Union(
   NoteDelete,
   SessionCreate,
   SessionRename,
+  SessionReorder,
   SessionDelete,
   SessionActivate,
   SettingsUpdate,
@@ -101,6 +110,7 @@ export const replySchemas = {
   NoteDelete: VoidReply,
   SessionCreate: Session,
   SessionRename: Session,
+  SessionReorder: Session,
   SessionDelete: VoidReply,
   SessionActivate: Settings,
   SettingsUpdate: Settings,

@@ -1,6 +1,6 @@
 import { Chunk, Effect, Fiber, Stream } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { makeFaultControl, makeMemoryKv } from './memory-kv';
+import { makeFaultControl, makeMemoryKv, makeMemorySessionKv } from './memory-kv';
 
 const flush = Effect.sleep(0);
 
@@ -50,5 +50,16 @@ describe('memory kv', () => {
     );
     control.set(null);
     await Effect.runPromise(kv.set('a', 1));
+  });
+});
+
+describe('memory session kv', () => {
+  it('allowContentAccess is a no-op that is counted on the control', async () => {
+    const control = makeFaultControl();
+    const kv = makeMemorySessionKv(control);
+    await Effect.runPromise(kv.allowContentAccess);
+    await Effect.runPromise(kv.allowContentAccess);
+    expect(control.contentAccessGrants()).toBe(2);
+    expect(await Effect.runPromise(kv.get('x'))).toBeUndefined();
   });
 });

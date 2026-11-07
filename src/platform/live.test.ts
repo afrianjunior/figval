@@ -87,6 +87,27 @@ describe('TabsLive', () => {
     expect(removed).toEqual([3]);
     expect(fake.tabs.onRemoved.listeners.size).toBe(0);
   });
+
+  it('streams status/url changes of any tab, drops irrelevant ones, then unsubscribes', async () => {
+    const seen = await run(
+      Effect.gen(function* () {
+        const fiber = yield* Effect.fork(Stream.runCollect(Stream.take((yield* Tabs).onUpdated, 3)));
+        yield* settle;
+        fake.tabs.onUpdated.emit(7, { status: 'loading', url: 'https://c.test/' }, { id: 7, windowId: 9 });
+        fake.tabs.onUpdated.emit(7, {}, { id: 7, windowId: 9 });
+        fake.tabs.onUpdated.emit(7, { status: 'unloaded' } as never, { id: 7, windowId: 9 });
+        fake.tabs.onUpdated.emit(8, { status: 'complete' }, { id: 8, windowId: 9 });
+        fake.tabs.onUpdated.emit(8, { url: 'https://d.test/' }, { id: 8, windowId: 9 });
+        return Array.from(yield* Fiber.join(fiber));
+      }),
+    );
+    expect(seen).toEqual([
+      { tabId: 7, status: 'loading', url: 'https://c.test/' },
+      { tabId: 8, status: 'complete' },
+      { tabId: 8, url: 'https://d.test/' },
+    ]);
+    expect(fake.tabs.onUpdated.listeners.size).toBe(0);
+  });
 });
 
 describe('ScriptingLive', () => {

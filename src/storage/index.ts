@@ -1,4 +1,11 @@
-export type { KvService, StorageChange, Listing, RepoError, RepoReadError } from './types';
+export type {
+  KvService,
+  SessionKvService,
+  StorageChange,
+  Listing,
+  RepoError,
+  RepoReadError,
+} from './types';
 export { SETTINGS_KEY, SESSIONS_KEY, notesKey, storageKeys } from './keys';
 export {
   ChromeStorage,

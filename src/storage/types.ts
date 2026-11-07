@@ -18,6 +18,12 @@ export interface KvService {
   readonly changes: Stream.Stream<StorageChange, StorageUnavailable>;
 }
 
+/** chrome.storage.session surface: KvService plus the access-level grant for content scripts. */
+export interface SessionKvService extends KvService {
+  /** Lets content scripts read/write the session area (default: trusted contexts only). */
+  readonly allowContentAccess: Effect.Effect<void, StorageUnavailable>;
+}
+
 /** The only errors repos expose; consumers never see deeper layers. */
 export type RepoError = StorageQuotaExceeded | StorageCorrupt | StorageUnavailable;
 export type RepoReadError = StorageCorrupt | StorageUnavailable;
