@@ -3,6 +3,7 @@ import { copy } from '../../copy';
 import { buildTarget, nearestBlock } from '../../locator';
 import type { EditRegistry } from '../edit';
 import type { OverlayHost } from './overlay-host';
+import { isFigvalEvent, PICKER_YIELD_EVENT } from './figval-ui';
 import { makeFrameScheduler } from './raf';
 import { TooltipPort } from './tooltip-port';
 
@@ -72,7 +73,7 @@ export const startSelection = (
 
     const onSelectionChange = (): void => frame.schedule();
     const onMouseUp = (event: Event): void => {
-      if (host.owns(event)) return;
+      if (isFigvalEvent(event)) return;
       frame.schedule();
     };
     const keepSelection = (event: Event): void => event.preventDefault();
@@ -89,6 +90,7 @@ export const startSelection = (
           registry,
         }),
       );
+      doc.dispatchEvent(new CustomEvent(PICKER_YIELD_EVENT));
       doc.getSelection()?.removeAllRanges();
       button.hidden = true;
     };

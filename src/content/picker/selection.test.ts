@@ -1,6 +1,7 @@
 import { Effect, Exit, Scope } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { copy } from '../../copy';
+import { startPicker } from './picker';
 import { startSelection } from './selection';
 import { makeHarness, nextFrame, recordingPort, type Harness } from './test-support';
 
@@ -78,6 +79,34 @@ describe('startSelection', () => {
     selectText(button()!);
     await nextFrame();
     expect(button()?.hidden).toBe(true);
+    Effect.runSync(Scope.close(scope, Exit.void));
+  });
+});
+
+describe('"+ Note" while picking', () => {
+  it('opens the tooltip with the selection and stops the picker', async () => {
+    const scope = Effect.runSync(Scope.make());
+    let finished = 0;
+    Effect.runSync(
+      Effect.all([
+        startSelection({ doc: document, host: h.host, registry: h.registry }),
+        startPicker({
+          doc: document,
+          host: h.host,
+          registry: h.registry,
+          onFinish: () => void finished++,
+        }),
+      ]).pipe(Effect.provide(port.layer), Scope.extend(scope)),
+    );
+    selectText(document.getElementById('p')!);
+    await nextFrame();
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true, composed: true });
+    button()!.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(false);
+    expect(port.calls).toHaveLength(1);
+    expect(port.calls[0]?.opts.selectionText).toBe('Pick the annual plan');
+    expect(port.calls[0]?.opts.anchor.id).toBe('p');
+    expect(finished).toBe(1);
     Effect.runSync(Scope.close(scope, Exit.void));
   });
 });

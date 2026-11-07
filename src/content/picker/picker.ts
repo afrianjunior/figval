@@ -2,6 +2,7 @@ import { Effect, Runtime, type Scope } from 'effect';
 import { copy } from '../../copy';
 import { buildTarget } from '../../locator';
 import type { EditRegistry } from '../edit';
+import { isFigvalEvent, PICKER_YIELD_EVENT } from './figval-ui';
 import { createOutlineBox } from './outline-box';
 import type { OverlayHost } from './overlay-host';
 import { down, hover, initialPickerState, up, type PickerState } from './picker-state';
@@ -83,16 +84,17 @@ export const startPicker = (
 
     const onMove = (event: Event): void => {
       const el = asElement(event.target);
-      if (!el || host.owns(event) || el === state.current) return;
+      if (!el || isFigvalEvent(event) || el === state.current) return;
       set(hover(state, el));
     };
     const onClick = (event: Event): void => {
-      if (host.owns(event)) return;
+      if (isFigvalEvent(event)) return;
       const el = state.selected ? state.current : asElement(event.target);
       swallow(event);
       if (el) confirm(el);
     };
     const onKey = (event: Event): void => {
+      if (isFigvalEvent(event)) return;
       const key = (event as KeyboardEvent).key;
       if (key === 'Escape') return (swallow(event), finish());
       if (key === 'Enter' && state.current) return (swallow(event), confirm(state.current));
@@ -100,12 +102,15 @@ export const startPicker = (
       if (key === 'ArrowDown') return (swallow(event), set(down(state)));
     };
 
+    const onYield = (): void => finish();
+
     const redraw = (): void => frame.schedule();
     yield* Effect.acquireRelease(
       Effect.sync(() => {
         doc.addEventListener('pointermove', onMove, true);
         doc.addEventListener('click', onClick, true);
         doc.addEventListener('keydown', onKey, true);
+        doc.addEventListener(PICKER_YIELD_EVENT, onYield);
         win.addEventListener('scroll', redraw, true);
         win.addEventListener('resize', redraw);
       }),
@@ -114,6 +119,7 @@ export const startPicker = (
           doc.removeEventListener('pointermove', onMove, true);
           doc.removeEventListener('click', onClick, true);
           doc.removeEventListener('keydown', onKey, true);
+          doc.removeEventListener(PICKER_YIELD_EVENT, onYield);
           win.removeEventListener('scroll', redraw, true);
           win.removeEventListener('resize', redraw);
           frame.cancel();

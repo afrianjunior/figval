@@ -151,3 +151,29 @@ describe('startPicker', () => {
     stop(scope);
   });
 });
+
+describe('startPicker with multiple Figval hosts', () => {
+  const secondHost = () => {
+    const host = document.createElement(HOST_TAG);
+    host.setAttribute('data-fv-host', '');
+    const root = host.attachShadow({ mode: 'open' });
+    const inner = document.createElement('button');
+    root.append(inner);
+    document.documentElement.append(host);
+    return { host, inner };
+  };
+
+  it('ignores clicks and moves inside another host shadow root', async () => {
+    const scope = begin();
+    const { host, inner } = secondHost();
+    mouse('pointermove', inner);
+    await nextFrame();
+    expect(h.host.layer.querySelector<HTMLElement>('.fv-ov-box')?.hidden).toBe(true);
+    expect(mouse('click', inner).defaultPrevented).toBe(false);
+    expect(mouse('click', host).defaultPrevented).toBe(false);
+    expect(port.calls).toHaveLength(0);
+    expect(finished).toBe(0);
+    stop(scope);
+    host.remove();
+  });
+});

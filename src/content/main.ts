@@ -7,15 +7,22 @@ import {
   type Handler,
   type Request,
 } from '../messaging';
-import { SessionStore, SessionStoreLive } from '../storage';
+import {
+  ChromeStorageLive,
+  NoteRepoLive,
+  SessionRepoLive,
+  SessionStore,
+  SessionStoreLive,
+  SettingsRepoLive,
+} from '../storage';
 import { makeEditRegistry, watchReapply, type EditRegistry } from './edit';
+import { makeTooltipPortLive } from './tooltip';
 import { makeMarkerLayer, type MarkerLayer } from './markers';
 import {
   acquireOverlayHost,
   startPicker,
   startSelection,
   TooltipPort,
-  TooltipPortNoop,
   type OverlayHost,
 } from './picker';
 
@@ -130,7 +137,16 @@ export const startContent = (
     return { handle, registry, host, markers };
   });
 
-const ContentLive = Layer.mergeAll(MessengerLive, SessionStoreLive, TooltipPortNoop);
+const makeContentLive = (options: ContentOptions) => {
+  const repos = Layer.mergeAll(SettingsRepoLive, SessionRepoLive, NoteRepoLive).pipe(
+    Layer.provide(ChromeStorageLive),
+  );
+  const base = Layer.mergeAll(MessengerLive, SessionStoreLive, repos);
+  const tooltip = makeTooltipPortLive({ resolveAsset: options.resolveAsset }).pipe(
+    Layer.provide(base),
+  );
+  return Layer.merge(base, tooltip);
+};
 
 /** Content script entry. Guarded so a second `executeScript` injection does nothing. */
 export function main(options: ContentOptions, onInvalidated?: (cb: () => void) => void): void {
@@ -140,7 +156,7 @@ export function main(options: ContentOptions, onInvalidated?: (cb: () => void) =
   const program = Effect.gen(function* () {
     yield* startContent(options);
     yield* Effect.never;
-  }).pipe(Effect.scoped, Effect.provide(ContentLive));
+  }).pipe(Effect.scoped, Effect.provide(makeContentLive(options)));
   const fiber = Effect.runFork(program);
   onInvalidated?.(() => {
     flags[CONTENT_FLAG] = false;
