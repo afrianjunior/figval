@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer } from 'react';
@@ -205,5 +207,75 @@ describe('TooltipView', () => {
     const h = setup();
     await userEvent.click(screen.getByRole('button', { name: new RegExp(t.actions.cancel) }));
     expect(h.onCancel).toHaveBeenCalled();
+  });
+});
+
+describe('Edit tab accessible names', () => {
+  const edit = () => setup({ tab: 'edit' });
+
+  it('names the color row parts with their own strings', () => {
+    edit();
+    expect(screen.getAllByRole('button', { name: t.edit.colorRow.openPicker })).toHaveLength(2);
+    expect(screen.getAllByRole('textbox', { name: t.edit.colorRow.hexField })).toHaveLength(2);
+  });
+
+  it('names the picker group and page swatches after opening', async () => {
+    edit();
+    await userEvent.click(screen.getAllByRole('button', { name: t.edit.colorRow.openPicker })[0]!);
+    expect(screen.getByRole('group', { name: t.edit.colorRow.picker })).toBeInTheDocument();
+  });
+
+  it('shows the short handle text while keeping the full accessible name', () => {
+    edit();
+    const handles = screen.getAllByTestId('scrub-handle').map((n) => n.textContent);
+    expect(handles).toEqual([
+      t.edit.handles.fontSize,
+      t.edit.handles.paddingVertical,
+      t.edit.handles.paddingHorizontal,
+      t.edit.handles.radius,
+    ]);
+    for (const name of [
+      t.edit.controls.fontSize,
+      t.edit.controls.paddingVertical,
+      t.edit.controls.paddingHorizontal,
+      t.edit.controls.radius,
+    ]) {
+      expect(screen.getByRole('spinbutton', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('labels font weight options with their names', () => {
+    edit();
+    const select = screen.getByRole('combobox', { name: t.edit.controls.fontWeight });
+    const labels = [...select.querySelectorAll('option')].map((o) => o.textContent);
+    expect(labels).toContain('400 Regular');
+    expect(labels).toContain('600 Semibold');
+  });
+
+  it('adds an unnamed weight as a bare number', () => {
+    setup({
+      tab: 'edit',
+      baseline: {
+        ...baselineFixture,
+        style: { ...baselineFixture.style, 'font-weight': '450' },
+      },
+    });
+    const select = screen.getByRole('combobox', { name: t.edit.controls.fontWeight });
+    expect([...select.querySelectorAll('option')].map((o) => o.textContent)).toContain('450');
+  });
+});
+
+describe('tooltip.css motion and dividers', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/content/tooltip/tooltip.css'), 'utf8');
+
+  it('drops the rise animation under reduced motion', () => {
+    const block = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    expect(block).toMatch(/\.fv-tip\s*\{[^}]*animation:\s*none/);
+  });
+
+  it('keeps a hairline above the first fields section', () => {
+    expect(css).toMatch(
+      /\.fv-tip__fields > \.fv-section:first-child\s*\{[^}]*border-top: 1px solid/,
+    );
   });
 });

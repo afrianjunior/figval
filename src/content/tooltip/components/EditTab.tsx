@@ -9,7 +9,6 @@ import {
   ScrubNumber,
   Segmented,
   Select,
-  Slider,
   Textarea,
   icons,
 } from '../../../ui';
@@ -19,13 +18,20 @@ import { ScopeRow } from './ScopeRow';
 
 const t = copy.tooltip.edit;
 const WEIGHTS = ['100', '200', '300', '400', '500', '600', '700', '800', '900'] as const;
-const PADDING_MIN_MAX = 64;
+const PADDING_MAX = 200;
 const SIZE_MAX = 200;
 const RADIUS_MAX = 200;
 
 const px = (value: string): number => {
   const n = Number.parseFloat(value);
   return Number.isFinite(n) ? n : 0;
+};
+/** Standard weights, plus the element's own value when it sits between them. */
+export const weightOptions = (current: string): { value: string; label: string }[] => {
+  const values = WEIGHTS.includes(current as (typeof WEIGHTS)[number])
+    ? [...WEIGHTS]
+    : [...WEIGHTS, current].sort((a, b) => Number(a) - Number(b));
+  return values.map((value) => ({ value, label: t.fontWeightOption(Number(value)) }));
 };
 const alignOf = (value: string): 'left' | 'center' | 'right' =>
   value === 'center' ? 'center' : value === 'right' || value === 'end' ? 'right' : 'left';
@@ -70,10 +76,10 @@ export function EditTab({
         value={styleValue(state, prop)}
         onChange={set(prop)}
         swatches={swatches}
-        swatchButtonLabel={label}
-        hexLabel={label}
-        pickerLabel={label}
-        swatchesLabel={label}
+        swatchButtonLabel={t.colorRow.openPicker}
+        hexLabel={t.colorRow.hexField}
+        pickerLabel={t.colorRow.picker}
+        swatchesLabel={t.colorRow.pageSwatches}
       />,
     );
   const hidden = state.controls.hidden;
@@ -138,7 +144,7 @@ export function EditTab({
             t.controls.fontSize,
             <ScrubNumber
               label={t.controls.fontSize}
-              handle="S"
+              handle={t.handles.fontSize}
               unit="px"
               min={1}
               max={SIZE_MAX}
@@ -151,7 +157,7 @@ export function EditTab({
             t.controls.fontWeight,
             <Select
               aria-label={t.controls.fontWeight}
-              options={WEIGHTS.map((w) => ({ value: w, label: w }))}
+              options={weightOptions(styleValue(state, 'font-weight'))}
               value={styleValue(state, 'font-weight')}
               onChange={set('font-weight')}
             />,
@@ -178,18 +184,18 @@ export function EditTab({
           onReset={() => reset('padding-block', 'padding-inline', 'border-radius')}
         >
           {(['padding-block', 'padding-inline'] as const).map((prop) => {
-            const label =
-              prop === 'padding-block' ? t.controls.paddingVertical : t.controls.paddingHorizontal;
-            const value = px(styleValue(state, prop));
+            const vertical = prop === 'padding-block';
+            const label = vertical ? t.controls.paddingVertical : t.controls.paddingHorizontal;
             return row(
               prop,
               label,
-              <Slider
+              <ScrubNumber
                 label={label}
+                handle={vertical ? t.handles.paddingVertical : t.handles.paddingHorizontal}
                 unit="px"
                 min={0}
-                max={Math.max(PADDING_MIN_MAX, Math.ceil(value))}
-                value={value}
+                max={PADDING_MAX}
+                value={px(styleValue(state, prop))}
                 onChange={(n) => set(prop)(`${n}px`)}
               />,
             );
@@ -199,7 +205,7 @@ export function EditTab({
             t.controls.radius,
             <ScrubNumber
               label={t.controls.radius}
-              handle="R"
+              handle={t.handles.radius}
               unit="px"
               min={0}
               max={RADIUS_MAX}

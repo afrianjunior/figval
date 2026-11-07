@@ -22,6 +22,7 @@ describe('PanelState variants', () => {
   it('Loading shows a busy skeleton and no controls', () => {
     mount(initialState);
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent(t.states.loading);
     expect(screen.queryByRole('button')).toBeNull();
   });
 
@@ -87,11 +88,57 @@ describe('PanelState variants', () => {
     expect(screen.getByLabelText(t.detail.comment)).toHaveValue('Comment 5');
     expect(screen.getByLabelText(t.detail.why)).toHaveValue('Too loud');
     expect(screen.getByText(t.detail.textChange('Daftar', 'Mulai gratis'))).toBeVisible();
-    expect(screen.getByText(t.detail.styleChange('background-color', '#FF2D55', '#0F62FE').replace(/\s+/g, ' '))).toBeVisible();
+    const fill = screen.getByRole('region', { name: t.detail.changeGroups.fill });
+    expect(within(fill).getByRole('group', { name: /background-color/ })).toHaveTextContent('#FF2D55#0F62FE');
+    expect(screen.getByRole('region', { name: t.detail.changeGroups.text })).toBeVisible();
+    expect(screen.queryByRole('region', { name: t.detail.changeGroups.layout })).toBeNull();
     expect(screen.getByText(t.detail.scopeOne)).toBeVisible();
     expect(screen.getByText(t.detail.noScreenshot)).toBeVisible();
     expect(screen.queryByLabelText(t.detail.letAgentApply)).toBeNull();
     expect(screen.getByText('main > button.cta')).toBeVisible();
+  });
+
+  it('Detail groups color, padding and hidden into Fill, Layout and Visibility sections', () => {
+    const base = mkNote(6);
+    const note = mkNote(6, {
+      target: { ...base.target, state: 'hover' },
+      edits: {
+        ...base.edits,
+        hidden: true,
+        style: [
+          { property: 'color', before: '#111111', after: '#222222' },
+          { property: 'padding-block', before: '4px', after: '8px' },
+        ],
+      },
+    });
+    mount(withUi(baseModel({ notes: [note] }), { view: 'detail', detailId: note.id }));
+    const names = screen
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent)
+      .filter((name) => name !== t.detail.screenshot);
+    expect(names).toEqual([
+      t.detail.changeGroups.fill,
+      t.detail.changeGroups.layout,
+      t.detail.changeGroups.visibility,
+    ]);
+    const layout = screen.getByRole('region', { name: t.detail.changeGroups.layout });
+    expect(within(layout).getByRole('group', { name: 'padding-block' })).toHaveTextContent('4px8px');
+    expect(screen.queryByRole('region', { name: t.detail.changeGroups.typography })).toBeNull();
+    expect(screen.getByText(t.detail.scopeOne)).toBeVisible();
+  });
+
+  it('Detail meta shows path, viewport and the target state', () => {
+    const base = mkNote(7);
+    const note = mkNote(7, { target: { ...base.target, state: 'focus' } });
+    mount(withUi(baseModel({ notes: [note] }), { view: 'detail', detailId: note.id }));
+    expect(screen.getByText(t.detail.meta('/register', 1440, 900, 'focus'))).toBeVisible();
+  });
+
+  it('Detail labels each locator block', () => {
+    const note = mkNote(8);
+    mount(withUi(baseModel({ notes: [note] }), { view: 'detail', detailId: note.id }));
+    const { domPath, selector, html } = t.detail.locatorParts;
+    for (const label of [domPath, selector, html]) expect(screen.getByText(label)).toBeInTheDocument();
   });
 
   it('Detail keeps the locator closed for the reviewer preset', () => {
@@ -160,6 +207,13 @@ describe('strip, search, toolbar and footer states', () => {
     mount(baseModel({ notes: [1, 2, 3, 4, 5].map((n) => mkNote(n)) }));
     await userEvent.keyboard('{Control>}f{/Control}');
     expect(screen.getByRole('textbox', { name: t.search.placeholder })).toHaveFocus();
+  });
+
+  it('noResults with only filters says so without quoting anything', () => {
+    const notes = [1, 2, 3, 4, 5].map((n) => mkNote(n));
+    const model = baseModel({ notes });
+    mount(withUi(model, { filters: { ...model.ui.filters, notFound: true } }));
+    expect(screen.getByText(t.states.noResults.filterLine)).toBeVisible();
   });
 
   it('noResults shows the query and a Reset filters button', async () => {
@@ -232,6 +286,28 @@ describe('keyboard, toasts and dialog', () => {
     screen.getAllByRole('button', { name: new RegExp('Button') })[0]!.focus();
     await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
     expect(fake.actions.reorder).toHaveBeenCalledWith([noteId(2), noteId(1)]);
+  });
+
+  it('moving one row of three sends the whole group in its new order', async () => {
+    const fake = mount(baseModel({ notes: [mkNote(1), mkNote(2), mkNote(3)] }));
+    screen.getAllByRole('button', { name: new RegExp('Button') })[1]!.focus();
+    await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}');
+    expect(fake.actions.reorder).toHaveBeenCalledWith([noteId(2), noteId(1), noteId(3)]);
+  });
+
+  it('a row moved in one group keeps every other visible id in the call', async () => {
+    const fake = mount(baseModel({ notes: [mkNote(1), mkNote(2), home(3)] }));
+    screen.getAllByRole('button', { name: new RegExp('Button') })[0]!.focus();
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    const [ids] = fake.actions.reorder!.mock.calls[0]! as [readonly string[]];
+    expect([...ids].sort()).toEqual([noteId(1), noteId(2), noteId(3)].sort());
+    expect(ids.indexOf(noteId(2))).toBeLessThan(ids.indexOf(noteId(1)));
+  });
+
+  it('an error toast closes with its Dismiss button', async () => {
+    const fake = mount(withUi(baseModel({ notes: [mkNote(1)] }), { errors: { export: 'ClipboardDenied' } }));
+    await userEvent.click(screen.getByRole('button', { name: copy.toasts.dismiss }));
+    expect(fake.actions.dismissError).toHaveBeenCalledWith('export');
   });
 
   it('Esc leaves a drill-in', async () => {

@@ -65,7 +65,7 @@ function DetailBody({ panel }: { readonly panel: DetailState }) {
   return (
     <div className="fvp-scroll fvp-detail__body">
       <p className="fv-mono fvp-meta">
-        {t.meta(p.path, note.page.viewport.w, note.page.viewport.h, panel.shell.toolbar.beforeAfter)}
+        {t.meta(p.path, note.page.viewport.w, note.page.viewport.h, note.target.state)}
       </p>
       {panel.row.notFound ? (
         <div className="fvp-missing" role="status">

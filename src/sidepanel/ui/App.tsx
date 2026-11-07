@@ -41,7 +41,7 @@ function ReadyView({ panel, searchRef }: { readonly panel: ReadyState; readonly 
           {panel.noResults === null ? (
             <NoteList panel={panel} />
           ) : (
-            <NoResultsView query={panel.noResults.query} filters={panel.filters} />
+            <NoResultsView query={panel.noResults.query} />
           )}
         </main>
       </Stage>

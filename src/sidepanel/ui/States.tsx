@@ -1,7 +1,6 @@
 import { copy } from '../../copy';
 import { Button, Skeleton, icons } from '../../ui';
 import type { ErrorTag } from '../../domain';
-import type { Filters } from '../model';
 import { usePanel } from './context';
 import { UnsupportedNote } from './Toolbar';
 
@@ -13,6 +12,7 @@ const SKELETON_ROWS = [72, 58, 66, 48] as const;
 export function LoadingView() {
   return (
     <div className="fvp-loading" role="status" aria-busy="true">
+      <span className="fv-sr-only">{t.loading}</span>
       <div className="fvp-loading__head">
         <Skeleton width={120} height={14} />
         <Skeleton width={20} height={14} />
@@ -61,22 +61,11 @@ export function EmptySessionView() {
   );
 }
 
-/** The query, or the labels of the active filters when the search box is empty. */
-const describeMiss = (query: string, filters: Filters): string => {
-  if (query !== '') return query;
-  const chips = copy.panel.search.chips;
-  return [
-    ...[...filters.types].map((x) => chips[x]),
-    ...[...filters.intents].map((x) => chips[x]),
-    ...(filters.notFound ? [chips.notFound] : []),
-  ].join(', ');
-};
-
-export function NoResultsView({ query, filters }: { readonly query: string; readonly filters: Filters }) {
+export function NoResultsView({ query }: { readonly query: string }) {
   const { actions } = usePanel();
   return (
     <div className="fvp-empty" role="status">
-      <p className="fvp-empty__line">{t.noResults.line(describeMiss(query, filters))}</p>
+      <p className="fvp-empty__line">{query === '' ? t.noResults.filterLine : t.noResults.line(query)}</p>
       <Button onClick={() => void actions.resetFilters()}>{t.noResults.reset}</Button>
     </div>
   );

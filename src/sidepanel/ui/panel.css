@@ -381,8 +381,23 @@ body {
 .fvp-detail__body > .fv-btn {
   justify-self: start;
 }
+.fvp-changes {
+  display: grid;
+  gap: var(--space-2);
+}
+.fvp-change__side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.fvp-change__to::before {
+  content: '\2192';
+  color: var(--c-muted);
+}
 .fvp-change {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
@@ -453,6 +468,14 @@ body {
 .fvp-locator__body {
   display: grid;
   gap: var(--space-2);
+}
+.fvp-locator__part {
+  display: grid;
+  gap: var(--space-1);
+}
+.fvp-locator__label {
+  color: var(--c-muted);
+  font-size: var(--text-11);
 }
 .fvp-code {
   max-height: 140px;

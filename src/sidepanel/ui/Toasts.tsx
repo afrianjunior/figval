@@ -29,6 +29,8 @@ function ErrorToast({ errorKey, tag }: { readonly errorKey: ErrorKey; readonly t
   const denied = tag === 'ClipboardDenied';
   return (
     <Toast
+      onClose={() => void actions.dismissError(errorKey)}
+      closeLabel={t.dismiss}
       message={denied ? t.clipboardDenied : copy.errors[tag]}
       action={
         denied ? (
