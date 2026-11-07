@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture SPA</title>
+  </head>
+  <body>
+    <main>
+      <h1>Task list</h1>
+      <button id="rerender" class="btn-refresh" data-testid="rerender">Refresh list</button>
+      <ul id="list" class="task-list"></ul>
+    </main>
+    <script>
+      const items = ['Write spec', 'Review design', 'Ship build'];
+      const list = document.getElementById('list');
+      function render() {
+        list.replaceChildren(
+          ...items.map((text) => {
+            const li = document.createElement('li');
+            li.className = 'task-item';
+            li.textContent = text;
+            return li;
+          }),
+        );
+      }
+      render();
+      setInterval(render, 2000);
+      document.getElementById('rerender').addEventListener('click', render);
+    </script>
+  </body>
+</html>

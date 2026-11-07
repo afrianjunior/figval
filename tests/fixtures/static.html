@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Static</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+      }
+      header,
+      main,
+      footer {
+        padding: 16px 24px;
+      }
+      .btn-primary {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+        margin-right: 8px;
+      }
+      .promo-banner {
+        background: #fde68a;
+        padding: 12px;
+      }
+      .pricing {
+        display: flex;
+        gap: 16px;
+      }
+      .pricing-card {
+        border: 1px solid #ccc;
+        padding: 16px;
+        width: 200px;
+      }
+    </style>
+  </head>
+  <body>
+    <header data-testid="site-header">
+      <nav aria-label="Main navigation" data-testid="main-nav">
+        <a href="#home">Home</a> <a href="#pricing">Pricing</a> <a href="#about">About</a>
+        <a class="btn-primary" href="#signup" data-testid="nav-signup">Sign up</a>
+      </nav>
+    </header>
+    <div class="promo-banner" data-testid="promo-banner">Spring sale: 20% off annual plans</div>
+    <main>
+      <section class="hero" aria-labelledby="hero-heading">
+        <div class="hero__inner">
+          <h1 id="hero-heading">Build faster with Acme</h1>
+          <p class="hero__lede">Ship products your customers love.</p>
+          <a class="btn-primary" href="#start" data-testid="hero-cta">Get started</a>
+        </div>
+      </section>
+      <section id="pricing" aria-labelledby="pricing-heading">
+        <h2 id="pricing-heading">Pricing</h2>
+        <div class="pricing">
+          <article class="pricing-card" data-testid="plan-free">
+            <h3>Free</h3>
+            <p class="plan-desc">For hobby projects and experiments.</p>
+            <a class="btn-primary" href="#free">Choose Free</a>
+          </article>
+          <article class="pricing-card" data-testid="plan-pro">
+            <h3>Pro</h3>
+            <p class="plan-desc">For teams that need more room to grow.</p>
+          </article>
+          <article class="pricing-card" data-testid="plan-enterprise">
+            <h3>Enterprise</h3>
+            <p class="plan-desc">For organizations with custom needs.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+    <footer data-testid="site-footer">
+      <p>Copyright Acme Inc.</p>
+      <a class="btn-primary" href="#contact">Contact us</a>
+    </footer>
+  </body>
+</html>

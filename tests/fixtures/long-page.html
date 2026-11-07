@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Long Page</title>
+    <style>
+      body {
+        margin: 0;
+      }
+      .spacer {
+        height: 3000px;
+        background: linear-gradient(#fff, #ddd);
+      }
+      #far-target {
+        padding: 24px;
+        background: #bbf7d0;
+      }
+    </style>
+  </head>
+  <body>
+    <header><h1>Long page</h1></header>
+    <div class="spacer" aria-hidden="true"></div>
+    <section id="far-target" data-testid="far-target">
+      <h2>Below the fold</h2>
+      <p>This element sits roughly 3000px down the page.</p>
+    </section>
+    <div style="height: 600px"></div>
+  </body>
+</html>
