@@ -1,0 +1,128 @@
+.fv-ov-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fv-ov-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border: 1px solid var(--c-accent);
+  pointer-events: none;
+  will-change: transform;
+}
+.fv-ov-box[hidden] {
+  display: none;
+}
+.fv-ov-box--selected {
+  border-width: 1.5px;
+}
+.fv-ov-box--note {
+  border-color: var(--c-accent);
+  background: var(--c-selected);
+}
+.fv-ov-box--pulse {
+  background: var(--c-selected);
+  animation: fv-ov-pulse 700ms var(--ease-out) both;
+}
+.fv-ov-corner {
+  display: none;
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--c-accent);
+  background: var(--c-surface-raised);
+}
+.fv-ov-box--selected .fv-ov-corner {
+  display: block;
+}
+.fv-ov-corner--tl {
+  top: -4px;
+  left: -4px;
+}
+.fv-ov-corner--tr {
+  top: -4px;
+  right: -4px;
+}
+.fv-ov-corner--bl {
+  bottom: -4px;
+  left: -4px;
+}
+.fv-ov-corner--br {
+  bottom: -4px;
+  right: -4px;
+}
+
+.fv-ov-chip {
+  position: absolute;
+  left: -1px;
+  bottom: calc(100% + 6px);
+  max-width: 280px;
+  padding: 2px 6px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--c-accent-solid);
+  color: var(--c-on-accent);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fv-ov-chip--below {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+.fv-ov-box--note .fv-ov-chip {
+  display: none;
+}
+
+.fv-ov-hint {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-4);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-panel);
+  background: var(--c-surface-raised);
+  color: var(--c-muted);
+  box-shadow: var(--shadow-panel);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.fv-ov-addnote {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  box-shadow: var(--shadow-panel);
+  will-change: transform;
+}
+.fv-ov-addnote[hidden] {
+  display: none;
+}
+
+.fv-slot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  will-change: transform;
+}
+
+@keyframes fv-ov-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fv-ov-box--pulse {
+    animation: none;
+    border-width: 2px;
+  }
+}

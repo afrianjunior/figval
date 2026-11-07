@@ -1,1 +1,12 @@
-export {};
+export { computeBaseline } from './baseline';
+export type { Baseline } from './baseline';
+export { toDiff } from './diff';
+export type { DraftEdits } from './diff';
+export { preview, revert } from './apply';
+export { makeEditRegistry } from './registry';
+export type { EditRegistry } from './registry';
+export { watchReapply } from './reapply';
+export { startTextEdit } from './textEdit';
+export type { TextEditSession } from './textEdit';
+export { pageSwatches } from './swatches';
+export { toHex } from './color';
