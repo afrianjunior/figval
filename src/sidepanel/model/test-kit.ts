@@ -19,11 +19,13 @@ import {
   type Request,
 } from '../../messaging';
 import {
+  Download,
   Ids,
   PlatformTest,
   type PlatformTestConfig,
   type TabInfo,
 } from '../../platform';
+import { StorageUnavailable } from '../../domain';
 import { NoteRepo, SessionRepo, SessionStore, SettingsRepo, makeStorageMemory } from '../../storage';
 import type { PanelEnv } from './context';
 import type { PanelStore } from './store';
@@ -95,6 +97,10 @@ export interface Harness {
   readonly failContent: { current: boolean };
   /** Make every background request fail with this remote tag. */
   readonly failBackground: { current: string | null };
+  /** Make Download.markdown fail with a DownloadFailed-tagged error. */
+  readonly failDownload: { current: boolean };
+  /** The next SessionStore.get fails with StorageUnavailable, then reads recover. */
+  readonly failSessionGetOnce: { current: boolean };
 }
 
 const fail = (tag: string): HandlerError => ({ _tag: tag });
@@ -200,8 +206,33 @@ export const makeHarness = (config: PlatformTestConfig = {}): Harness => {
   const failActivation = { current: null as string | null };
   const failContent = { current: false };
   const failBackground = { current: null as string | null };
+  const failDownload = { current: false };
+  const failSessionGetOnce = { current: false };
 
-  const base = Layer.mergeAll(PlatformTest(config), makeStorageMemory(), MessengerLoopback);
+  const platform = PlatformTest(config);
+  const failingDownload = Layer.effect(
+    Download,
+    Effect.map(Download, (real) => ({
+      markdown: (filename: string, text: string) =>
+        failDownload.current
+          ? (Effect.fail({ _tag: 'DownloadFailed' }) as unknown as Effect.Effect<void>)
+          : real.markdown(filename, text),
+    })),
+  ).pipe(Layer.provide(platform));
+  const storage = makeStorageMemory();
+  const flakySessionStore = Layer.effect(
+    SessionStore,
+    Effect.map(SessionStore, (kv) => ({
+      ...kv,
+      get: (key: string) =>
+        Effect.suspend(() => {
+          if (!failSessionGetOnce.current) return kv.get(key);
+          failSessionGetOnce.current = false;
+          return Effect.fail(new StorageUnavailable({ cause: 'simulated outage' }));
+        }),
+    })),
+  ).pipe(Layer.provide(storage));
+  const base = Layer.mergeAll(platform, storage, MessengerLoopback, failingDownload, flakySessionStore);
   const serving = Layer.scopedDiscard(
     Effect.gen(function* () {
       const messenger = yield* Messenger;
@@ -213,9 +244,9 @@ export const makeHarness = (config: PlatformTestConfig = {}): Harness => {
         yield* SessionStore,
         yield* Ids,
       );
-      yield* messenger.serve('background', (req) => {
+      yield* messenger.serve('background', (req, ctx) => {
         toBackground.push(req);
-        return failBackground.current === null ? handler(req) : Effect.fail(fail(failBackground.current));
+        return failBackground.current === null ? handler(req, ctx) : Effect.fail(fail(failBackground.current));
       });
       yield* messenger.serve('content', (req) => {
         toContent.push(req);
@@ -224,5 +255,5 @@ export const makeHarness = (config: PlatformTestConfig = {}): Harness => {
     }),
   );
   const layer = serving.pipe(Layer.provideMerge(base), Layer.merge(TestContext));
-  return { layer: layer as unknown as Layer.Layer<PanelEnv>, toContent, toBackground, failActivation, failContent, failBackground };
+  return { layer: layer as unknown as Layer.Layer<PanelEnv>, toContent, toBackground, failActivation, failContent, failBackground, failDownload, failSessionGetOnce };
 };

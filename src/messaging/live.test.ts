@@ -2,7 +2,7 @@ import { Effect, Scope, TestContext } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeFakeChrome, installFakeChrome, uninstallFakeChrome, type FakeChrome } from '../platform/fake-chrome';
 import { draft, note, tabId } from './fixtures';
-import { MessengerLive } from './live';
+import { chromeTransport, MessengerLive } from './live';
 import { Messenger, type Handler } from './messenger';
 
 const run = <A, E>(eff: Effect.Effect<A, E, Messenger | Scope.Scope>) =>
@@ -51,6 +51,34 @@ describe('MessengerLive', () => {
       }),
     );
     expect(fake.runtime.onMessage.listeners.size).toBe(0);
+  });
+
+  it('fills senderTabId from sender.tab.id', async () => {
+    uninstallFakeChrome();
+    fake = makeFakeChrome({ senderTabId: 42 });
+    installFakeChrome(fake);
+    const seen: unknown[] = [];
+    await run(
+      Effect.gen(function* () {
+        const m = yield* Messenger;
+        yield* m.serve('background', (_req, ctx) => {
+          seen.push(ctx);
+          return Effect.succeed(note);
+        });
+        yield* m.toBackground({ _tag: 'NoteCreate', draft });
+      }),
+    );
+    expect(seen).toEqual([{ senderTabId: 42 }]);
+  });
+
+  it('replies with an InvariantViolation envelope when the raw handler defects', async () => {
+    const reply = await run(
+      Effect.gen(function* () {
+        yield* chromeTransport().listen('background', () => Effect.die('boom'));
+        return yield* Effect.promise(() => fake.runtime.sendMessage({ _tag: 'Ping' }));
+      }),
+    );
+    expect(reply).toEqual({ ok: false, error: { tag: 'InvariantViolation' } });
   });
 
   it('does not answer senders from another extension', async () => {

@@ -19,6 +19,9 @@
 .fv-toast .fv-iconbtn {
   color: inherit;
 }
+.fv-toast :focus-visible {
+  outline-color: var(--c-surface);
+}
 .fv-toast .fv-iconbtn:hover:not(:disabled) {
   background: rgb(128 128 128 / 28%);
   color: inherit;

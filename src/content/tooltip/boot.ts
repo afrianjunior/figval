@@ -27,7 +27,10 @@ export interface BootDeps {
 
 const orNone = <A, E>(
   effect: Effect.Effect<Option.Option<A>, E>,
-): Effect.Effect<Option.Option<A>> => effect.pipe(Effect.orElseSucceed(() => Option.none<A>()));
+): Effect.Effect<Option.Option<A>> => effect.pipe(
+    // divergent: boot reads degrade to "nothing stored" so the tooltip still opens.
+    Effect.orElseSucceed(() => Option.none<A>()),
+  );
 
 /** Reads settings, the next seq (or the note being reopened) and any stored draft. Storage errors degrade to defaults. */
 export const loadBoot = (
@@ -37,6 +40,7 @@ export const loadBoot = (
   selector: string,
 ): Effect.Effect<Boot | null> =>
   Effect.gen(function* () {
+    // divergent: unreadable settings fall back to defaults so the tooltip still opens.
     const settings = yield* deps.settings.get.pipe(Effect.orElseSucceed(() => defaultSettings));
     const sessionId = settings.activeSessionId;
     const session = sessionId ? yield* orNone(deps.sessions.get(sessionId)) : Option.none();

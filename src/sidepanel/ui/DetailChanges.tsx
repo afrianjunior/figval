@@ -20,6 +20,20 @@ const STYLE_GROUP: Readonly<Record<StyleChange['property'], GroupKey>> = {
   'border-radius': 'layout',
 };
 
+const controls = copy.tooltip.edit.controls;
+
+/** Human label for each style property, from copy. */
+const STYLE_LABEL: Readonly<Record<StyleChange['property'], string>> = {
+  color: controls.textColor,
+  'background-color': controls.background,
+  'font-size': controls.fontSize,
+  'font-weight': controls.fontWeight,
+  'text-align': controls.textAlign,
+  'padding-block': controls.paddingVertical,
+  'padding-inline': controls.paddingHorizontal,
+  'border-radius': controls.radius,
+};
+
 const COLOR_PROPS: ReadonlySet<string> = new Set(['color', 'background-color']);
 
 function Value({ text, color }: { readonly text: string; readonly color: boolean }) {
@@ -34,10 +48,13 @@ function Value({ text, color }: { readonly text: string; readonly color: boolean
 function StyleRow({ change }: { readonly change: StyleChange }) {
   const color = COLOR_PROPS.has(change.property);
   return (
-    <PropertyRow label={change.property} changed>
+    <PropertyRow label={STYLE_LABEL[change.property]} changed>
       <span className="fvp-change">
         <Value text={change.before} color={color} />
-        <span className="fvp-change__to" aria-hidden="true" />
+        <span className="fvp-change__to" aria-hidden="true">
+          →
+        </span>
+        <span className="fv-sr-only">{t.changeTo}</span>
         <Value text={change.after} color={color} />
       </span>
     </PropertyRow>

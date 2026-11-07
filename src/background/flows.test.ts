@@ -119,7 +119,11 @@ describe('sessions and settings', () => {
     expect(reordered.noteOrder).toEqual([b.id, a.id]);
     const saved = await h.run(Effect.flatMap(SessionRepo, (r) => r.get(id)));
     expect(saved._tag === 'Some' && saved.value.noteOrder).toEqual([b.id, a.id]);
-    for (const noteOrder of [[a.id], [a.id, a.id], [a.id, '00000000-0000-4000-8000-000000000000' as typeof a.id]]) {
+    for (const noteOrder of [
+      [a.id],
+      [a.id, a.id],
+      [a.id, '00000000-0000-4000-8000-000000000000' as typeof a.id],
+    ]) {
       expect(await fail({ _tag: 'SessionReorder', id, noteOrder })).toMatchObject({
         tag: 'InvalidOrder',
       });

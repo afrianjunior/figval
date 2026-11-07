@@ -21,6 +21,7 @@
   --c-scrim: rgb(20 21 24 / 40%);
 
   --font-ui: 'Figval Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-kbd: var(--font-ui), 'SF Mono', 'Apple Symbols', 'Segoe UI Symbol', ui-monospace, sans-serif;
   --font-mono: 'Figval JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --text-11: 11px;

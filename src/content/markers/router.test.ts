@@ -116,6 +116,15 @@ describe('content router', () => {
     expect(document.querySelector(HOST_TAG)).toBeNull();
   });
 
+  it('reverts registry edits when its scope closes', async () => {
+    const a = document.getElementById('a')!;
+    app.registry.apply('n1', a, { ...emptyEdits, hidden: true });
+    expect(a.style.display).toBe('none');
+    await Effect.runPromise(Scope.close(scope, Exit.void));
+    expect(a.style.display).not.toBe('none');
+    expect(app.registry.entries()).toHaveLength(0);
+  });
+
   it('main() does nothing on a second injection', () => {
     (globalThis as Record<string, unknown>)[CONTENT_FLAG] = true;
     const before = document.querySelectorAll(HOST_TAG).length;

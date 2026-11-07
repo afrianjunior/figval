@@ -1,4 +1,4 @@
-import { Effect, Option, Schema, Stream, SubscriptionRef } from 'effect';
+import { Effect, Option, Schedule, Schema, Stream, SubscriptionRef } from 'effect';
 import { NoteId, normalizePageKey, TabId, type Note } from '../../domain';
 import { Messenger } from '../../messaging';
 import { Tabs, unsupportedUrl, type TabInfo } from '../../platform';
@@ -20,15 +20,31 @@ const decodeOr = <A, I>(schema: Schema.Schema<A, I>, fallback: A) => {
   return (raw: unknown): A => Option.getOrElse(decode(raw), () => fallback);
 };
 
+const RESUBSCRIBE = Schedule.spaced('1 second');
+
+/** A live stream must outlive a failed read: log, wait, subscribe again. */
+const resubscribe = <A, E, R>(
+  stream: Stream.Stream<A, E, R>,
+  onError: (e: E) => Effect.Effect<void> = () => Effect.void,
+): Stream.Stream<A, never, R> =>
+  stream.pipe(
+    Stream.tapError((e) => Effect.logWarning('figval panel: live stream failed, resubscribing', e).pipe(Effect.zipRight(onError(e)))),
+    Stream.retry(RESUBSCRIBE),
+    // divergent: RESUBSCRIBE never completes, so this failure channel is unreachable
+    Stream.orDie,
+  );
+
 /** Latest value of one session-storage key: initial read, then re-read on each change. */
 const sessionKey = (key: string): Stream.Stream<unknown, never, SessionStore> =>
-  Stream.unwrap(
-    Effect.map(SessionStore, (kv) =>
-      Stream.merge(Stream.make(null), kv.changes.pipe(Stream.filter((c) => c.key === key))).pipe(
-        Stream.mapEffect(() => kv.get(key)),
+  resubscribe(
+    Stream.unwrap(
+      Effect.map(SessionStore, (kv) =>
+        Stream.merge(Stream.make(null), kv.changes.pipe(Stream.filter((c) => c.key === key))).pipe(
+          Stream.mapEffect(() => kv.get(key)),
+        ),
       ),
     ),
-  ).pipe(Stream.catchAll(() => Stream.empty));
+  );
 
 const tabIdChanges = (ctx: Ctx): Stream.Stream<TabId | null> =>
   ctx.ref.changes.pipe(
@@ -58,6 +74,7 @@ const tabStream = (ctx: Ctx): Stream.Stream<ActiveTab, never, Tabs> =>
         );
       }
       // The bound tab is usually not the focused one (test mode): follow its own updates.
+      // divergent: a closed or unreadable bound tab simply yields no tab update
       const read = tabs.get(bound).pipe(Effect.option, Effect.map(Option.getOrNull));
       return Stream.mergeAll(
         [
@@ -93,9 +110,8 @@ const onTab = (ctx: Ctx) => (tab: ActiveTab) =>
   });
 
 const loop = <A, E>(stream: Stream.Stream<A, E, PanelEnv>, ctx: Ctx, onValue: (a: A) => Effect.Effect<void>) =>
-  stream.pipe(
+  resubscribe(stream, failTo(ctx, 'storage')).pipe(
     Stream.runForEach(onValue),
-    Effect.catchAll(failTo(ctx, 'storage')),
     Effect.forkIn(ctx.scope),
   );
 
@@ -133,11 +149,12 @@ const notesFeed = (ctx: Ctx): Stream.Stream<NotesFeed, never, NoteRepo> =>
                   Stream.mapEffect((notes) =>
                     repo.list(id).pipe(
                       Effect.map((l) => l.corrupt),
+                      // divergent: a failed corrupt-count read must not drop the notes that did load
                       Effect.orElseSucceed(() => 0),
                       Effect.map((corrupt): NotesFeed => ({ sessionId: id, notes, corrupt })),
                     ),
                   ),
-                  Stream.catchAll((e) => Stream.fromEffect(failTo(ctx, 'storage')(e)).pipe(Stream.drain)),
+                  (feed) => resubscribe(feed, failTo(ctx, 'storage')),
                 ),
               ),
             ),
@@ -177,6 +194,7 @@ const countsLoop = (ctx: Ctx) =>
           Effect.forEach(s.sessions, (x) =>
             repo.list(x.id).pipe(
               Effect.map((l) => [x.id, pageCounts(l.items)] as const),
+              // divergent: one unreadable session shows no page counts instead of blocking the rest
               Effect.orElseSucceed(() => [x.id, {}] as const),
             ),
           ),

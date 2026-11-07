@@ -1,12 +1,14 @@
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
-import { emptyEdits, TabId, type NoteDraft } from '../domain';
+import { emptyEdits, StorageUnavailable, TabId, type NoteDraft } from '../domain';
 import { Messenger, makeMessengerLoopback, type Handler } from '../messaging';
 import { PlatformTest, type PlatformTestConfig, type TabInfo } from '../platform';
 import {
   makeFaultControl,
   makeMemoryShotStore,
   makeStorageMemory,
+  SessionRepo,
   SessionStoreMemory,
+  SettingsRepo,
   ShotStore,
   type ShotStoreService,
 } from '../storage';
@@ -50,6 +52,8 @@ export interface HarnessOptions {
   /** When false the content script is absent: Ping fails and nothing else is served. */
   readonly contentAlive?: boolean;
   readonly screenshotsOff?: boolean;
+  /** Sender tab id the loopback attaches to every message. */
+  readonly senderTabId?: number;
 }
 
 /** In-process background + fake content; `contentCalls` records the content-bound tags in order. */
@@ -69,6 +73,24 @@ export const makeHarness = (options: HarnessOptions = {}) => {
       ),
   };
   const failing = { tag: null as string | null };
+  const breakWrites = { sessionReplace: false, settingsPut: false };
+  const brokenWrite = Effect.fail(new StorageUnavailable({ cause: 'simulated write failure' }));
+  const faulty = Layer.effect(
+    SessionRepo,
+    Effect.map(SessionRepo, (repo) => ({
+      ...repo,
+      replace: (session: Parameters<typeof repo.replace>[0]) =>
+        breakWrites.sessionReplace ? brokenWrite : repo.replace(session),
+    })),
+  );
+  const faultySettings = Layer.effect(
+    SettingsRepo,
+    Effect.map(SettingsRepo, (repo) => ({
+      ...repo,
+      put: (settings: Parameters<typeof repo.put>[0]) =>
+        breakWrites.settingsPut ? brokenWrite : repo.put(settings),
+    })),
+  );
   const content: Handler = (req) => {
     contentCalls.push(req._tag);
     if (req._tag === failing.tag) return Effect.fail({ _tag: 'ContentBroke' });
@@ -92,9 +114,12 @@ export const makeHarness = (options: HarnessOptions = {}) => {
     SessionStoreMemory(fault),
     Layer.succeed(ShotStore, shotSpy),
     PlatformTest({ tabs: [tab(1)], activeTabId: tabIdOf(1), now: NOV_7_2026, ...options.platform }),
-    makeMessengerLoopback(),
+    makeMessengerLoopback(
+      options.senderTabId === undefined ? {} : { senderTabId: options.senderTabId },
+    ),
   );
-  const layer = Layer.provideMerge(served, base);
+  const wrapped = Layer.provideMerge(Layer.merge(faulty, faultySettings), base);
+  const layer = Layer.provideMerge(served, wrapped);
   const runtime = ManagedRuntime.make(layer);
   return {
     runtime,
@@ -102,6 +127,7 @@ export const makeHarness = (options: HarnessOptions = {}) => {
       runtime.runPromise(effect),
     contentCalls,
     fault,
+    breakWrites,
     shotLive,
     failContentOn: (tag: string | null) => {
       failing.tag = tag;

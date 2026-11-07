@@ -45,7 +45,10 @@ const withContent = (tabId: TabId, tag: 'UiHide' | 'UiShow' | 'EditsOff' | 'Edit
   Effect.flatMap(Messenger, (m) => m.toContent(tabId, { _tag: tag }));
 
 const restore = (tabId: TabId, tag: 'UiShow' | 'EditsOn') =>
-  withContent(tabId, tag).pipe(Effect.ignore);
+  withContent(tabId, tag).pipe(
+    // divergent: restore runs in a finalizer; a failure must not replace the capture result, so log and swallow
+    Effect.catchAll((e) => Effect.logWarning(`restore ${tag} failed: ${e._tag}`)),
+  );
 
 /** Hide the tooltip, grab the page, always show the tooltip again. */
 const hidden = <A, E, R>(tabId: TabId, body: Effect.Effect<A, E, R>) =>
@@ -76,7 +79,14 @@ const storeBlobs = (blobs: { readonly before: Blob; readonly after: Blob | null 
     yield* Effect.all([
       store.put(before, blobs.before),
       ...(after === null || blobs.after === null ? [] : [store.put(after, blobs.after)]),
-    ]).pipe(Effect.tapError(() => store.removeMany(stored).pipe(Effect.ignore)));
+    ]).pipe(
+      Effect.tapError(() =>
+        // divergent: cleanup after a failed put is best effort; the put error is what escapes
+        store
+          .removeMany(stored)
+          .pipe(Effect.catchAll((e) => Effect.logWarning(`shot cleanup failed: ${e._tag}`))),
+      ),
+    );
     return { before, after } satisfies Shots;
   });
 
@@ -86,6 +96,7 @@ const storeBlobs = (blobs: { readonly before: Blob; readonly after: Blob | null 
  */
 export const captureShots = (target: CaptureTarget, withEdits: boolean) =>
   hidden(target.tabId, grabBlobs(target, withEdits).pipe(Effect.flatMap(storeBlobs))).pipe(
+    // divergent: any capture failure escapes as "no shots" so the note still saves (§6)
     Effect.catchAll((e) =>
       Effect.logWarning(`capture skipped: ${e._tag}`).pipe(Effect.as(noShots)),
     ),

@@ -9,6 +9,7 @@ const query = (doc: Document, selector: string): readonly Element[] => {
   try {
     return [...doc.querySelectorAll(selector)];
   } catch {
+    // divergent: an invalid page selector simply matches nothing; there is no failure to surface.
     return [];
   }
 };

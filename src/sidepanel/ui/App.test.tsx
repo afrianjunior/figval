@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { copy } from '../../copy';
 import { defaultSettings } from '../../domain';
 import { initialState } from '../model';
@@ -89,7 +89,7 @@ describe('PanelState variants', () => {
     expect(screen.getByLabelText(t.detail.why)).toHaveValue('Too loud');
     expect(screen.getByText(t.detail.textChange('Daftar', 'Mulai gratis'))).toBeVisible();
     const fill = screen.getByRole('region', { name: t.detail.changeGroups.fill });
-    expect(within(fill).getByRole('group', { name: /background-color/ })).toHaveTextContent('#FF2D55#0F62FE');
+    expect(within(fill).getByRole('group', { name: copy.tooltip.edit.controls.background })).toHaveTextContent(`#FF2D55→${t.detail.changeTo}#0F62FE`);
     expect(screen.getByRole('region', { name: t.detail.changeGroups.text })).toBeVisible();
     expect(screen.queryByRole('region', { name: t.detail.changeGroups.layout })).toBeNull();
     expect(screen.getByText(t.detail.scopeOne)).toBeVisible();
@@ -122,7 +122,7 @@ describe('PanelState variants', () => {
       t.detail.changeGroups.visibility,
     ]);
     const layout = screen.getByRole('region', { name: t.detail.changeGroups.layout });
-    expect(within(layout).getByRole('group', { name: 'padding-block' })).toHaveTextContent('4px8px');
+    expect(within(layout).getByRole('group', { name: copy.tooltip.edit.controls.paddingVertical })).toHaveTextContent(`4px→${t.detail.changeTo}8px`);
     expect(screen.queryByRole('region', { name: t.detail.changeGroups.typography })).toBeNull();
     expect(screen.getByText(t.detail.scopeOne)).toBeVisible();
   });
@@ -279,6 +279,53 @@ describe('keyboard, toasts and dialog', () => {
     expect(fake.actions.open).toHaveBeenCalledWith(noteId(1));
     await userEvent.keyboard('{Delete}');
     expect(fake.actions.deleteNote).toHaveBeenCalledWith(noteId(1));
+  });
+
+  it('Delete moves focus to the next row, then the previous, then the group heading', async () => {
+    const fake = mount(baseModel({ notes: [mkNote(1), mkNote(2)] }));
+    const buttons = screen.getAllByRole('button', { name: new RegExp('Button') });
+    buttons[0]!.focus();
+    await userEvent.keyboard('{Delete}');
+    expect(buttons[1]).toHaveFocus();
+    await userEvent.keyboard('{Delete}');
+    expect(buttons[0]).toHaveFocus();
+    expect(fake.actions.deleteNote).toHaveBeenCalledTimes(2);
+  });
+
+  it('Delete on the only row focuses the group heading', async () => {
+    mount(baseModel({ notes: [mkNote(1)] }));
+    screen.getByRole('button', { name: new RegExp('Button') }).focus();
+    await userEvent.keyboard('{Delete}');
+    expect(screen.getByRole('heading', { level: 3, name: new RegExp(t.list.groupThisPage) })).toHaveFocus();
+  });
+
+  it('Cmd/Ctrl+Z undoes a pending delete and does nothing otherwise', async () => {
+    const idle = mount(baseModel({ notes: [mkNote(1)] }));
+    await userEvent.keyboard('{Control>}z{/Control}');
+    expect(idle.actions.undoDelete?.mock.calls ?? []).toHaveLength(0);
+  });
+
+  it('Cmd/Ctrl+Z calls undoDelete while a delete is pending', async () => {
+    const fake = mount(withUi(baseModel({ notes: [mkNote(1)] }), { pendingDelete: { id: noteId(1), until: 5000 } }));
+    await userEvent.keyboard('{Control>}z{/Control}');
+    expect(fake.actions.undoDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('the toast region is a polite live region', () => {
+    const { container } = render(<App store={fakeStore(baseModel({ notes: [mkNote(1)] })).store} />);
+    expect(container.querySelector('.fvp-toasts')).toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('Pick button shows the Mac glyphs on Mac and Alt+Shift+F elsewhere', () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get');
+    ua.mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X)');
+    const { unmount } = render(<App store={fakeStore(baseModel()).store} />);
+    expect(screen.getByText(copy.keys.toggleShortcut)).toBeVisible();
+    unmount();
+    ua.mockReturnValue('Mozilla/5.0 (Windows NT 10.0)');
+    render(<App store={fakeStore(baseModel()).store} />);
+    expect(screen.getByText(copy.keys.toggleShortcutOther)).toBeVisible();
+    ua.mockRestore();
   });
 
   it('Alt+Arrow reorders a row through the model', async () => {

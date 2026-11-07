@@ -33,8 +33,7 @@
 }
 .fv-btn__kbd {
   margin-left: var(--space-1);
-  opacity: 0.85;
-  font-family: var(--font-mono);
+  font-family: var(--font-kbd);
   font-size: var(--text-11);
 }
 .fv-btn--primary {
@@ -252,8 +251,9 @@
 }
 .fv-seg__item--on {
   background: var(--c-surface-raised);
-  color: var(--c-text);
-  box-shadow: 0 0 0 1px var(--c-line-strong);
+  color: var(--c-accent);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--c-accent);
 }
 .fv-seg__item:disabled {
   opacity: 0.45;
@@ -437,7 +437,7 @@ button.fv-swatch:active {
 .fv-chip {
   display: inline-flex;
   align-items: center;
-  height: 24px;
+  height: var(--control-h);
   padding: 0 var(--space-2);
   border: 1px solid var(--c-line-strong);
   border-radius: var(--radius-control);
@@ -465,6 +465,6 @@ button.fv-swatch:active {
 
 .fv-kbd {
   color: var(--c-muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-kbd);
   font-size: var(--text-11);
 }

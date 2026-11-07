@@ -23,8 +23,9 @@ export const panel = {
       active: 'Click any element on the page, or select text to add a note.',
       picking: 'Click the element you want to note. Esc cancels.',
       unsupported: "Figval can't run on this page.",
-      permissionDeclined: "Site access was declined, so Figval can't pick elements here.",
-      injectionFailed: "Figval couldn't start on this page. Reload the page, then try again.",
+      permissionDeclined:
+        "Site access was declined, so Figval can't pick elements here. Choose Try again to allow it.",
+      injectionFailed: "Figval couldn't start on this page. Reload the page and try again.",
     },
     retry: 'Try again',
     reloadHint: 'Reload the page',
@@ -74,15 +75,15 @@ export const panel = {
     notFound: {
       badge: 'not found',
       explanation:
-        "Figval can't find this element on the page anymore. The page may have changed. Your note and its screenshot are still here.",
+        "Figval can't find this element on the page anymore. The page may have changed. The note and its screenshot are still saved.",
     },
     noResults: {
-      line: (query: string): string => `No notes match "${query}"`,
-      filterLine: 'No notes match these filters',
+      line: (query: string): string => `No notes match "${query}".`,
+      filterLine: 'No notes match these filters.',
       reset: 'Reset filters',
     },
     loading: 'Loading notes',
-    storageError: { line: "That didn't save. Nothing was lost, so try again." },
+    storageError: { line: "The note wasn't saved. Your changes are still here, so try again." },
     exportNothingSelected: { hint: 'Check at least one note to export.' },
   },
   detail: {
@@ -97,6 +98,7 @@ export const panel = {
     letAgentApply: 'Let the agent apply this',
     changes: 'Changes',
     rows: { text: 'Text', style: 'Style', scope: 'Scope' },
+    changeTo: 'to',
     textChange: (before: string, after: string): string => `"${before}" → "${after}"`,
     styleChange: (property: string, before: string, after: string): string =>
       `${property}  ${before} → ${after}`,
@@ -104,8 +106,8 @@ export const panel = {
     scopeOne: 'this element',
     editOnPage: 'Edit on page',
     screenshot: 'Screenshot',
-    copyBefore: 'Copy before',
-    copyAfter: 'Copy after',
+    copyBefore: 'Copy before screenshot',
+    copyAfter: 'Copy after screenshot',
     noScreenshot: 'No screenshot',
     locator: 'Locator',
     locatorParts: { domPath: 'DOM path', selector: 'Selector', html: 'HTML' },
@@ -118,7 +120,7 @@ export const panel = {
     },
     deleteNote: 'Delete note',
     notFoundExplanation:
-      "Figval can't find this element on the page anymore. The page may have changed. The note is still saved, and so is its screenshot.",
+      "Figval can't find this element on the page anymore. The page may have changed. The note and its screenshot are still saved.",
   },
   footer: {
     format: { llm: 'LLM', human: 'Human', label: 'Export format' },
@@ -143,7 +145,9 @@ export const panel = {
     deleteDialog: {
       title: (name: string): string => `Delete "${name}"?`,
       body: (n: number): string =>
-        `This deletes ${plural(n, 'the note', `all ${n} notes`)} and every screenshot in this session. Screenshots can't be recovered.`,
+        n === 0
+          ? "This deletes the session. This can't be undone."
+          : `This deletes ${plural(n, 'the note', `all ${n} notes`)} and every screenshot in this session. This can't be undone.`,
       confirm: 'Delete session',
       cancel: 'Cancel',
     },
@@ -157,6 +161,6 @@ export const panel = {
     screenshotsOn: 'On',
     screenshotsOff: 'Off',
     corrupt: (n: number): string =>
-      `${count(n, 'saved note', 'saved notes')} could not be read and ${plural(n, 'was', 'were')} skipped.`,
+      `${count(n, 'saved note', 'saved notes')} couldn't be read and ${plural(n, 'was', 'were')} skipped.`,
   },
 } as const;

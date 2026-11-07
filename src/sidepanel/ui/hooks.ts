@@ -83,6 +83,6 @@ export const useFocusReturn = (drilledIn: boolean, root: RefObject<HTMLElement |
   };
 };
 
-const isMac = (): boolean => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);
+export const isMac = (): boolean => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);
 export const searchHint = (hints: { readonly mac: string; readonly other: string }): string =>
   isMac() ? hints.mac : hints.other;

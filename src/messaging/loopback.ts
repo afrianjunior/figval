@@ -6,6 +6,8 @@ export interface LoopbackOptions {
   readonly extensionId?: string;
   /** Sender id attached to every message; defaults to `extensionId`. */
   readonly senderId?: string | undefined;
+  /** Tab id attached to every message, simulating `sender.tab.id`; defaults to undefined. */
+  readonly senderTabId?: number | undefined;
 }
 
 /** Structured-clone stand-in: only JSON-safe data crosses the boundary, as with chrome messaging. */
@@ -19,7 +21,7 @@ export const makeLoopbackTransport = (options: LoopbackOptions = {}): Transport 
   const send = (target: SendTarget, raw: unknown): Effect.Effect<unknown> => {
     const handler = handlers.get(target.side);
     if (!handler) return Effect.never;
-    return handler(wire(raw), senderId).pipe(
+    return handler(wire(raw), senderId, options.senderTabId).pipe(
       Effect.flatMap(Option.match({ onNone: () => Effect.never, onSome: (reply) => Effect.succeed(wire(reply)) })),
     );
   };

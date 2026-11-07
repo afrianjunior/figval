@@ -2,6 +2,7 @@ import { copy } from '../../copy';
 import { Button, Segmented, icons } from '../../ui';
 import type { Shell } from '../model';
 import { usePanel } from './context';
+import { isMac } from './hooks';
 
 const t = copy.panel.toolbar;
 
@@ -33,7 +34,7 @@ export function Toolbar({ shell }: { readonly shell: Shell }) {
         <Button
           variant="primary"
           icon={icons.pick}
-          kbd={copy.keys.toggleShortcut}
+          kbd={isMac() ? copy.keys.toggleShortcut : copy.keys.toggleShortcutOther}
           disabled={toolbar.pickDisabled}
           onClick={() => void actions.pick()}
         >

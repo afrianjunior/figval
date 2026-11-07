@@ -10,6 +10,7 @@ import {
   type ContentRequest,
   type Reply,
   type ReplyValue,
+  type RequestTag,
 } from './protocol';
 import type { SendTarget, Side, Transport } from './transport';
 
@@ -17,7 +18,7 @@ export type MessagingError = MessageTimeout | MessageDecodeError | RemoteFailure
 
 export interface CallOptions {
   readonly timeoutMs?: number;
-  /** Extra attempts after a MessageTimeout (default 2). */
+  /** Extra attempts after a MessageTimeout (default 2; 0 for NON_IDEMPOTENT requests). */
   readonly retries?: number;
 }
 
@@ -25,7 +26,20 @@ export interface HandlerError {
   readonly _tag: string;
   readonly message?: unknown;
 }
-export type Handler = (req: Request) => Effect.Effect<unknown, HandlerError>;
+export interface HandlerContext {
+  /** Tab that sent the message; undefined for extension pages (side panel) and the loopback default. */
+  readonly senderTabId?: number;
+}
+export type Handler = (req: Request, ctx: HandlerContext) => Effect.Effect<unknown, HandlerError, never>;
+
+/** Requests that must never be re-sent automatically: a slow reply would otherwise duplicate the write. */
+export const NON_IDEMPOTENT: ReadonlySet<RequestTag> = new Set<RequestTag>([
+  'NoteCreate',
+  'SessionCreate',
+  'NoteDelete',
+  'SessionDelete',
+  'SessionReorder',
+]);
 
 export interface MessengerService {
   readonly toBackground: <R extends BackgroundRequest>(
@@ -77,7 +91,7 @@ export const makeMessenger = (transport: Transport, config: Partial<MessengerCon
         duration: Duration.millis(ms),
         onTimeout: () => new MessageTimeout({ type: req._tag, ms }),
       }),
-      Effect.retry(Schedule.recurs(options?.retries ?? cfg.retries)),
+      Effect.retry(Schedule.recurs(options?.retries ?? (NON_IDEMPOTENT.has(req._tag) ? 0 : cfg.retries))),
     );
   };
 
@@ -101,9 +115,9 @@ export const makeMessenger = (transport: Transport, config: Partial<MessengerCon
       ),
     );
 
-  const runHandler = (handler: Handler, req: Request) =>
+  const runHandler = (handler: Handler, req: Request, ctx: HandlerContext) =>
     Effect.gen(function* () {
-      const value = yield* handler(req);
+      const value = yield* handler(req, ctx);
       const encoded = yield* Schema.encodeUnknown(replyEnvelope(replySchemaFor(req._tag)))({
         ok: true,
         value,
@@ -120,7 +134,7 @@ export const makeMessenger = (transport: Transport, config: Partial<MessengerCon
 
   const handleRaw =
     (side: Side, handler: Handler) =>
-    (raw: unknown, senderId: string | undefined): Effect.Effect<Option.Option<unknown>> => {
+    (raw: unknown, senderId: string | undefined, senderTabId?: number): Effect.Effect<Option.Option<unknown>> => {
       if (senderId !== transport.extensionId) return Effect.succeed(Option.none());
       return Schema.decodeUnknown(Request)(raw).pipe(
         Effect.matchEffect({
@@ -128,7 +142,7 @@ export const makeMessenger = (transport: Transport, config: Partial<MessengerCon
             Effect.succeed<unknown>(errorReply('MessageDecodeError', `${tagOf(raw)}: ${e.message}`)),
           onSuccess: (req) =>
             (directionOf(req._tag) === 'toBackground') === (side === 'background')
-              ? runHandler(handler, req)
+              ? runHandler(handler, req, senderTabId === undefined ? {} : { senderTabId })
               : Effect.succeed<unknown>(errorReply('MessageDecodeError', `${req._tag} not served by ${side}`)),
         }),
         Effect.map((reply) => Option.some(reply)),

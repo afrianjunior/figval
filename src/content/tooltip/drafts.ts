@@ -1,4 +1,5 @@
 import { Effect, Option } from 'effect';
+import type { ForkInScope } from './session';
 import type { SessionKvService } from '../../storage';
 import { decodeStoredDraft, type StoredDraft } from './model/draft';
 
@@ -11,6 +12,7 @@ export const readDraft = (
 ): Effect.Effect<Option.Option<StoredDraft>> =>
   kv.get(key).pipe(
     Effect.map((raw) => (raw === undefined ? Option.none() : decodeStoredDraft(raw))),
+    // divergent: an unreadable draft is the same as no draft; there is nothing to report to the user.
     Effect.orElseSucceed(() => Option.none<StoredDraft>()),
   );
 
@@ -34,7 +36,11 @@ export interface DraftWriter {
   readonly cancel: () => void;
 }
 
-export const makeDraftWriter = (kv: SessionKvService, key: string): DraftWriter => {
+export const makeDraftWriter = (
+  kv: SessionKvService,
+  key: string,
+  fork: ForkInScope,
+): DraftWriter => {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const cancel = (): void => {
     if (timer !== null) clearTimeout(timer);
@@ -46,7 +52,7 @@ export const makeDraftWriter = (kv: SessionKvService, key: string): DraftWriter 
       cancel();
       timer = setTimeout(() => {
         timer = null;
-        Effect.runFork(draft ? writeDraft(kv, key, draft) : clearDraft(kv, key));
+        fork(draft ? writeDraft(kv, key, draft) : clearDraft(kv, key));
       }, DRAFT_DEBOUNCE_MS);
     },
   };

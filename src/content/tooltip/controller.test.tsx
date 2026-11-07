@@ -131,6 +131,25 @@ describe('tooltip session', () => {
     expect(shadow()).toBeNull();
   });
 
+  it('ignores Cancel and Esc while a save is in flight and saves the note once', async () => {
+    let release: (note: Note) => void = () => undefined;
+    const pending = Effect.async<Note, RemoteFailure>((resume) => {
+      release = (n) => resume(Effect.succeed(n));
+    });
+    rig = await open({ settings: { preset: 'developer', lastTooltipTab: 'edit' }, reply: pending });
+    await userEvent.click(ui().getByRole('checkbox', { name: t.edit.controls.hide }));
+    await userEvent.click(ui().getByRole('button', { name: new RegExp(t.actions.save) }));
+    await userEvent.click(ui().getByRole('button', { name: new RegExp(t.actions.cancel) }));
+    await userEvent.keyboard('{Escape}');
+    await flush();
+    expect(shadow()).not.toBeNull();
+    expect(rig.el.style.display).toBe('none');
+    release(savedNote(rig.el, { ...emptyEdits, hidden: true }));
+    await waitFor(() => expect(shadow()).toBeNull());
+    expect(rig.toBackground).toHaveBeenCalledTimes(1);
+    expect(rig.el.style.display).toBe('none');
+  });
+
   it('keeps edits visible through the registry after Save', async () => {
     const edits = { ...emptyEdits, hidden: true };
     rig = await open({ settings: { preset: 'developer', lastTooltipTab: 'edit' } });

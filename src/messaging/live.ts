@@ -1,4 +1,4 @@
-import { Effect, Layer, Option } from 'effect';
+import { Effect, Exit, Layer, Option } from 'effect';
 import { chromeApi } from '../platform/chrome-api';
 import { Messenger, makeMessenger } from './messenger';
 import type { RawHandler, SendTarget, Side, Transport } from './transport';
@@ -10,17 +10,19 @@ const send = (target: SendTarget, raw: unknown): Effect.Effect<unknown, unknown>
       : chromeApi().tabs.sendMessage(target.tabId, raw),
   );
 
+const INVARIANT_REPLY = { ok: false, error: { tag: 'InvariantViolation' } } as const;
+
 const listen = (_side: Side, onRaw: RawHandler) =>
   Effect.acquireRelease(
     Effect.sync(() => {
       const listener = (
         message: unknown,
-        sender: { readonly id?: string | undefined },
+        sender: { readonly id?: string | undefined; readonly tab?: { readonly id?: number | undefined } | undefined },
         sendResponse: (response?: unknown) => void,
       ): boolean => {
         if (sender.id !== chromeApi().runtime.id) return false;
-        void Effect.runPromise(onRaw(message, sender.id)).then((reply) =>
-          sendResponse(Option.getOrUndefined(reply)),
+        void Effect.runPromiseExit(onRaw(message, sender.id, sender.tab?.id)).then((exit) =>
+          sendResponse(Exit.isSuccess(exit) ? Option.getOrUndefined(exit.value) : INVARIANT_REPLY),
         );
         return true;
       };

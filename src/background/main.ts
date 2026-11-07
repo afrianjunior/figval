@@ -3,7 +3,12 @@ import { TabId } from '../domain';
 import { Messenger, MessengerLive } from '../messaging';
 import { Action, Commands, PlatformLive, SidePanel, Tabs } from '../platform';
 import { SessionStore, StorageLive } from '../storage';
-import { clearActivation, clearIfOriginChanged, ensureActivation } from './activation';
+import {
+  clearActivation,
+  clearIfOriginChanged,
+  ensureActivation,
+  reinjectIfActive,
+} from './activation';
 import { missingKey } from './keys';
 import { asHandler, type HandleEnv } from './router';
 
@@ -45,15 +50,33 @@ const onTabRemoved = Stream.unwrap(Effect.map(Tabs, (t) => t.onRemoved)).pipe(
 
 const decodeTabId = Schema.decodeUnknownOption(TabId);
 
-/** A navigation starts as `loading` with a url; a new origin ends the activation. */
+type NavEvent =
+  | { readonly kind: 'loading'; readonly tabId: TabId; readonly url: string }
+  | { readonly kind: 'complete'; readonly tabId: TabId };
+
+const navEventOf = (u: {
+  readonly tabId: number;
+  readonly status?: string | undefined;
+  readonly url?: string | undefined;
+}): Option.Option<NavEvent> => {
+  const tabId = decodeTabId(u.tabId);
+  if (u.status === 'loading' && u.url !== undefined) {
+    const url = u.url;
+    return Option.map(tabId, (id): NavEvent => ({ kind: 'loading', tabId: id, url }));
+  }
+  return u.status === 'complete'
+    ? Option.map(tabId, (id): NavEvent => ({ kind: 'complete', tabId: id }))
+    : Option.none();
+};
+
+/** `loading` with a url: a new origin ends the activation. `complete`: an active same-origin tab is re-injected. */
 const onNavigation = Stream.unwrap(Effect.map(Tabs, (t) => t.onUpdated)).pipe(
-  Stream.filterMap((u) =>
-    u.status === 'loading' && u.url !== undefined
-      ? Option.map(decodeTabId(u.tabId), (tabId) => ({ tabId, url: u.url ?? '' }))
-      : Option.none(),
-  ),
-  Stream.mapEffect(({ tabId, url }) =>
-    clearIfOriginChanged(tabId, url).pipe(logged('navigation')),
+  Stream.filterMap(navEventOf),
+  Stream.mapEffect((event) =>
+    (event.kind === 'loading'
+      ? clearIfOriginChanged(event.tabId, event.url)
+      : reinjectIfActive(event.tabId)
+    ).pipe(logged('navigation')),
   ),
 );
 

@@ -43,7 +43,7 @@ export const exportDownload = (ctx: Ctx): Effect.Effect<void, never, PanelEnv> =
     yield* download.markdown(rendered.value.filename, rendered.value.text);
     yield* clearError(ctx, 'export');
     yield* flash(ctx, 'export-download');
-  });
+  }).pipe(Effect.catchAll(failTo(ctx, 'export')));
 
 export const copyShot = (ctx: Ctx, noteId: NoteId, which: 'before' | 'after'): Effect.Effect<void, never, PanelEnv> =>
   Effect.gen(function* () {

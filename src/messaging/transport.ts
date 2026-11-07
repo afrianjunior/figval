@@ -8,7 +8,11 @@ export type SendTarget =
   | { readonly side: 'content'; readonly tabId: TabId };
 
 /** Raw handler for one side: returns `None` when the message is ignored (no reply). */
-export type RawHandler = (raw: unknown, senderId: string | undefined) => Effect.Effect<Option.Option<unknown>>;
+export type RawHandler = (
+  raw: unknown,
+  senderId: string | undefined,
+  senderTabId?: number,
+) => Effect.Effect<Option.Option<unknown>>;
 
 /** Wire abstraction under the Messenger: chrome.runtime in production, in-process in tests. */
 export interface Transport {

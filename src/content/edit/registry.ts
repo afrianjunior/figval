@@ -1,5 +1,12 @@
 import type { Edits } from '../../domain';
-import { applyEdits, restoreElement, resumePreviews, suspendPreviews, targetsOf } from './apply';
+import {
+  applyEdits,
+  disposeEdits,
+  restoreElement,
+  resumePreviews,
+  suspendPreviews,
+  targetsOf,
+} from './apply';
 
 export interface EditRegistry {
   apply(noteId: string, el: Element, edits: Edits): void;
@@ -8,6 +15,8 @@ export interface EditRegistry {
   editsOff(): void;
   /** Re-applies everything editsOff reverted. */
   editsOn(): void;
+  /** Reverts every edit and preview and empties the registry and the document's store. Call from a scope finalizer. */
+  release(): void;
   isOn(): boolean;
   entries(): ReadonlyArray<{ noteId: string; edits: Edits }>;
   /** The element the note's edits were last applied to. */
@@ -57,7 +66,7 @@ export const makeEditRegistry = (doc: Document): EditRegistry => {
     editsOff() {
       if (!on) return;
       on = false;
-      suspendPreviews();
+      suspendPreviews(doc);
       entries.forEach(release);
     },
     editsOn() {
@@ -65,6 +74,11 @@ export const makeEditRegistry = (doc: Document): EditRegistry => {
       on = true;
       paintAll(entries);
       resumePreviews(doc);
+    },
+    release() {
+      disposeEdits(doc);
+      entries = new Map();
+      on = true;
     },
     isOn: () => on,
     entries: () => [...entries].map(([noteId, e]) => ({ noteId, edits: e.edits })),

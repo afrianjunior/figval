@@ -18,7 +18,7 @@ export const tooltip = {
     provisionalId: (seq: number): string => `FV-${seq}`,
   },
   comment: {
-    placeholder: 'What should change, and why?',
+    placeholder: 'What should change?',
     addReason: '+ Add reason',
     reasonPlaceholder: 'Why does it need to change?',
     forceApply: 'Let the agent apply this',
@@ -38,10 +38,10 @@ export const tooltip = {
       background: 'Background',
       fontSize: 'Font size',
       fontWeight: 'Font weight',
-      paddingVertical: 'Padding vertical',
-      paddingHorizontal: 'Padding horizontal',
-      radius: 'Radius',
-      textAlign: 'Text align',
+      paddingVertical: 'Vertical padding',
+      paddingHorizontal: 'Horizontal padding',
+      radius: 'Corner radius',
+      textAlign: 'Text alignment',
       alignLeft: 'Align left',
       alignCenter: 'Align center',
       alignRight: 'Align right',
@@ -80,7 +80,7 @@ export const tooltip = {
   status: {
     reapplied: 'Element changed, edits re-applied',
     elementGone: 'This element is gone from the page. You can still save your note as a comment.',
-    saveFailed: "Couldn't save. Your note is still here, so try again.",
+    saveFailed: "The note wasn't saved. Your changes are still here, so try again.",
     discardConfirm: 'Press Esc again to discard',
   },
   draft: {
@@ -105,16 +105,17 @@ export const keys = {
   submitOther: 'Ctrl+↵',
   escape: 'Esc',
   toggleShortcut: '⌥⇧F',
+  toggleShortcutOther: 'Alt+Shift+F',
   up: '↑',
   down: '↓',
 } as const;
 
 export const toasts = {
   dismiss: 'Dismiss',
-  deleted: 'Deleted',
+  deleted: 'Note deleted',
   undo: 'Undo',
   copied: 'Copied to clipboard',
-  downloaded: 'Downloaded',
+  downloaded: 'Markdown downloaded',
   clipboardDenied: 'The browser blocked copying.',
   clipboardDeniedAction: 'Download .md instead',
 } as const;

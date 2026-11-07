@@ -1,4 +1,4 @@
-import { Effect, Exit, Scope } from 'effect';
+import { Effect, Exit, Fiber, Scope } from 'effect';
 import { hasEdits } from '../../domain';
 import { clearDraft } from './drafts';
 import { escapeOutcome } from './model/selectors';
@@ -7,10 +7,19 @@ import type { RestoreAfterClose, SessionCtx } from './session';
 
 export interface Actions {
   readonly cancel: Effect.Effect<void>;
+  /** UI Cancel button: ignored while a save is in flight. */
+  readonly requestCancel: () => void;
   readonly startSave: () => void;
   /** Header close and Esc: close when clean, otherwise ask once, then discard. */
   readonly requestClose: () => void;
 }
+
+/**
+ * Closing the scope interrupts the fibers forked in it, which may include the caller
+ * (save, UI cancel). A daemon does the closing so the caller is never waiting on itself.
+ */
+const closeScope = (scope: Scope.CloseableScope): Effect.Effect<void> =>
+  Effect.forkDaemon(Scope.close(scope, Exit.void)).pipe(Effect.flatMap(Fiber.join));
 
 /** Closes exactly once: reverts the preview, lets `restore` repaint, drops the draft, returns focus. */
 const makeFinish =
@@ -26,7 +35,7 @@ const makeFinish =
         discard: true,
       }).pipe(
         Effect.zipRight(Effect.sync(() => (ctx.previousFocus as HTMLElement | null)?.focus?.())),
-        Effect.zipRight(Scope.close(ctx.scope, Exit.void)),
+        Effect.zipRight(closeScope(ctx.scope)),
       );
     });
 
@@ -66,14 +75,18 @@ export const makeActions = (ctx: SessionCtx): Actions => {
 
   return {
     cancel,
+    requestCancel: () => {
+      if (!store.get().saving) ctx.fork(cancel);
+    },
     startSave: () => {
       if (store.get().saving) return;
       store.dispatch({ type: 'saving' });
-      Effect.runFork(save);
+      ctx.fork(save);
     },
     requestClose: () => {
+      if (store.get().saving) return;
       if (escapeOutcome(store.get()) === 'arm') store.dispatch({ type: 'escape' });
-      else Effect.runFork(cancel);
+      else ctx.fork(cancel);
     },
   };
 };

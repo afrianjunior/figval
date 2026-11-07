@@ -56,7 +56,10 @@ export function ScrubNumber({
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') return commitDraft();
-    if (event.key === 'Escape') return setDraft(null);
+    if (event.key === 'Escape') {
+      if (draft !== null) event.stopPropagation();
+      return setDraft(null);
+    }
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
     event.preventDefault();
     const base = draft === null ? value : (parseNumber(draft) ?? value);

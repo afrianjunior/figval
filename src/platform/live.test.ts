@@ -6,7 +6,7 @@ import { Capture, CaptureLive } from './capture';
 import { Clipboard, ClipboardLive } from './clipboard';
 import { Clock, ClockFixed, ClockLive } from './clock';
 import { Commands, CommandsLive } from './commands';
-import { Download, DownloadLive, markdownDataUrl } from './download';
+import { Download, DownloadFailed, DownloadLive, markdownDataUrl } from './download';
 import { installFakeChrome, makeFakeChrome, uninstallFakeChrome, type FakeChrome } from './fake-chrome';
 import { Ids, IdsLive } from './ids';
 import { Permissions, PermissionsLive } from './permissions';
@@ -256,10 +256,21 @@ describe('DownloadLive, SidePanelLive, ClockLive, IdsLive', () => {
     expect(decodeURIComponent(markdownDataUrl('# Héllo\n').split(',')[1] ?? '')).toBe('# Héllo\n');
   });
 
-  it('treats a failed download as a defect', async () => {
-    fake.downloads.download.mockRejectedValueOnce(new Error('x'));
-    const exit = await Effect.runPromiseExit(Effect.provide(Effect.flatMap(Download, (d) => d.markdown('r.md', '')), DownloadLive));
-    expect(exit._tag).toBe('Failure');
+  it('maps a rejected download (user cancel) to DownloadFailed', async () => {
+    fake.downloads.download.mockRejectedValueOnce(new Error('User cancelled'));
+    const err = await Effect.runPromise(
+      Effect.provide(Effect.flip(Effect.flatMap(Download, (d) => d.markdown('r.md', ''))), DownloadLive),
+    );
+    expect(err).toBeInstanceOf(DownloadFailed);
+    expect(err.cause).toBe('User cancelled');
+  });
+
+  it('stringifies non-Error rejections', async () => {
+    fake.downloads.download.mockRejectedValueOnce('nope');
+    const err = await Effect.runPromise(
+      Effect.provide(Effect.flip(Effect.flatMap(Download, (d) => d.markdown('r.md', ''))), DownloadLive),
+    );
+    expect(err.cause).toBe('nope');
   });
 
   it('configures and opens the side panel', async () => {

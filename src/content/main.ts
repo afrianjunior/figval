@@ -125,6 +125,7 @@ export const startContent = (
     const appScope = yield* Effect.scope;
     const host = yield* acquireOverlayHost({ doc, resolveAsset: options.resolveAsset });
     const registry = makeEditRegistry(doc);
+    yield* Effect.addFinalizer(() => Effect.sync(() => registry.release()));
     const markers = yield* makeMarkerLayer({ doc, host, registry });
     const deps: Deps = { doc, host, registry, markers, port };
     const picker = yield* makePickerController(deps, appScope);

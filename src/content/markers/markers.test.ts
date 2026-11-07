@@ -151,4 +151,38 @@ describe('markers', () => {
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     expect(pins()[0]?.style.transform).toBe('translate(202px, 276px)');
   });
+
+  it('sends an empty MissingReport when a later render has no notes', async () => {
+    const b = document.getElementById('b')!;
+    const ghost: Note = {
+      ...noteFor(b, 3),
+      target: { ...noteFor(b, 3).target, selector: '#nope', attrs: {}, text: 'zzz', domPath: [] },
+    };
+    await run(layer.render([ghost]));
+    await vi.waitFor(() => expect(reports).toEqual([[ghost.id]]));
+    await run(layer.render([]));
+    await vi.waitFor(() => expect(reports).toEqual([[ghost.id], []]));
+  });
+
+  it('flags slots near the right and top edges with data-edge', async () => {
+    const a = document.getElementById('a')!;
+    const rectAt = (left: number, right: number, top: number) => () => ({
+      left,
+      right,
+      top,
+      bottom: top + 40,
+      width: right - left,
+      height: 40,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    });
+    a.getBoundingClientRect = rectAt(10, window.innerWidth, 20);
+    await run(layer.render([noteFor(a, 1)]));
+    expect(pins()[0]?.dataset.edge?.split(' ').sort()).toEqual(['below', 'right']);
+    a.getBoundingClientRect = rectAt(10, 210, 300);
+    window.dispatchEvent(new Event('scroll'));
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(pins()[0]?.dataset.edge ?? '').toBe('');
+  });
 });

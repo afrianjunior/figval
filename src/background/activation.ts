@@ -66,3 +66,30 @@ export const clearIfOriginChanged = (tabId: TabId, url: string) =>
     yield* store.remove([missingKey(tabId)]);
     yield* clearActivation(tabId);
   });
+
+const storedActivation = (tabId: TabId) =>
+  Effect.map(
+    Effect.flatMap(SessionStore, (store) => store.get(activationKey(tabId))),
+    (stored) =>
+      typeof stored === 'object' &&
+      stored !== null &&
+      'active' in stored &&
+      stored.active === true &&
+      'origin' in stored &&
+      typeof stored.origin === 'string'
+        ? stored.origin
+        : undefined,
+  );
+
+/**
+ * F4: a same-origin reload or navigation drops the content script while `activation:<tab>` stays
+ * active. When the tab finished loading, re-inject (ping first); no PickerStart, the panel owns that.
+ */
+export const reinjectIfActive = (tabId: TabId) =>
+  Effect.gen(function* () {
+    const origin = yield* storedActivation(tabId);
+    if (origin === undefined) return;
+    const tab = yield* readSupportedTab(tabId);
+    if (originOf(tab.url) !== origin) return;
+    yield* injectWithRetry(tabId);
+  });

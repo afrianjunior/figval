@@ -11,13 +11,14 @@ export const fakeEvent = <Args extends unknown[]>() => {
   };
 };
 
-type MessageListener = (message: unknown, sender: { id?: string }, respond: (r?: unknown) => void) => unknown;
+type Sender = { id?: string; tab?: { id: number } };
+type MessageListener = (message: unknown, sender: Sender, respond: (r?: unknown) => void) => unknown;
 
 /** Delivers a message to registered listeners like chrome messaging: resolves on respond. */
-const dispatch = (event: ReturnType<typeof fakeEvent<[unknown, { id?: string }, (r?: unknown) => void]>>, senderId: string) =>
+const dispatch = (event: ReturnType<typeof fakeEvent<[unknown, Sender, (r?: unknown) => void]>>, senderId: string, senderTabId?: number) =>
   (message: unknown): Promise<unknown> =>
     new Promise((resolve, reject) => {
-      const kept = [...event.listeners].map((l) => (l as MessageListener)(message, { id: senderId }, resolve));
+      const kept = [...event.listeners].map((l) => (l as MessageListener)(message, senderTabId === undefined ? { id: senderId } : { id: senderId, tab: { id: senderTabId } }, resolve));
       if (!kept.some(Boolean)) reject(new Error('Could not establish connection. Receiving end does not exist.'));
     });
 
@@ -29,12 +30,12 @@ export interface FakeTab {
   active?: boolean;
 }
 
-export const makeFakeChrome = (options: { id?: string; senderId?: string; tabs?: FakeTab[] } = {}) => {
+export const makeFakeChrome = (options: { id?: string; senderId?: string; senderTabId?: number; tabs?: FakeTab[] } = {}) => {
   const id = options.id ?? 'ext-id';
   const senderId = options.senderId ?? id;
   const tabs = options.tabs ?? [];
-  const onMessage = fakeEvent<[unknown, { id?: string }, (r?: unknown) => void]>();
-  const deliver = dispatch(onMessage, senderId);
+  const onMessage = fakeEvent<[unknown, Sender, (r?: unknown) => void]>();
+  const deliver = dispatch(onMessage, senderId, options.senderTabId);
   const onActivated = fakeEvent<[{ tabId: number }]>();
   const onUpdated = fakeEvent<[number, { status?: string; url?: string }, FakeTab]>();
   const onRemoved = fakeEvent<[number]>();

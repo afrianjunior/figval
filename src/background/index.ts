@@ -1,6 +1,11 @@
-export { ensureActivation, clearActivation, clearIfOriginChanged } from './activation';
+export {
+  ensureActivation,
+  clearActivation,
+  clearIfOriginChanged,
+  reinjectIfActive,
+} from './activation';
 export { captureShots, captureCurrent, CAPTURE_GAP, noShots, type CaptureTarget } from './capture';
-export { createNote, updateNote, deleteNote } from './note-service';
+export { createNote, updateNote, deleteNote, identityLock, type Lock } from './note-service';
 export {
   createSession,
   renameSession,

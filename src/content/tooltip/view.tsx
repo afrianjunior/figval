@@ -1,4 +1,3 @@
-import { Effect } from 'effect';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import type { OverlayHost } from '../picker';
@@ -43,7 +42,7 @@ export const mountView = (ctx: SessionCtx, host: OverlayHost, actions: Actions):
   const onTextActive = (active: boolean): void => {
     previewer.setTextActive(active);
     if (!active) {
-      Effect.runFork(textRow.deactivate);
+      ctx.fork(textRow.deactivate);
       return previewer.apply(store.get());
     }
     if (!store.get().baseline.hasEditableText) return;
@@ -52,7 +51,7 @@ export const mountView = (ctx: SessionCtx, host: OverlayHost, actions: Actions):
         type: 'text',
         value: value === store.get().baseline.text ? null : value,
       });
-    Effect.runFork(textRow.activate(ctx.ref.el, onText));
+    ctx.fork(textRow.activate(ctx.ref.el, onText));
   };
 
   const element = (): React.JSX.Element => {
@@ -68,7 +67,7 @@ export const mountView = (ctx: SessionCtx, host: OverlayHost, actions: Actions):
         side={placement.side}
         isMac={isMac()}
         onSave={actions.startSave}
-        onCancel={() => Effect.runFork(actions.cancel)}
+        onCancel={actions.requestCancel}
         onRequestClose={actions.requestClose}
         onTextActive={onTextActive}
         onHoverSimilar={(on) => (on ? matches.show(selector) : matches.hide())}
@@ -80,7 +79,7 @@ export const mountView = (ctx: SessionCtx, host: OverlayHost, actions: Actions):
         }}
         onDiscardDraft={() => {
           store.dispatch({ type: 'dismissResume' });
-          Effect.runFork(clearDraft(deps.sessionStore, ctx.draftKey));
+          ctx.fork(clearDraft(deps.sessionStore, ctx.draftKey));
         }}
         onScrollToElement={() => ctx.ref.el.scrollIntoView?.({ block: 'center' })}
       />

@@ -19,6 +19,13 @@ type ReadyState = Extract<PanelState, { readonly _tag: 'Ready' }>;
 const isFindKey = (event: { readonly key: string; readonly metaKey: boolean; readonly ctrlKey: boolean }): boolean =>
   (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f';
 
+const isUndoKey = (event: {
+  readonly key: string;
+  readonly metaKey: boolean;
+  readonly ctrlKey: boolean;
+  readonly shiftKey: boolean;
+}): boolean => (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z';
+
 /** Body area plus the toast layer that floats above the footer. */
 function Stage({ shell, view, children }: { readonly shell: Shell; readonly view: PanelState['_tag']; readonly children: ReactNode }) {
   return (
@@ -73,6 +80,18 @@ export function App({ store }: AppProps) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [canSearch]);
+
+  const deletePending = panel._tag !== 'Loading' && panel.shell.pendingDelete !== null;
+  useEffect(() => {
+    if (!deletePending) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (!isUndoKey(event) || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      event.preventDefault();
+      void actions.undoDelete();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [deletePending, actions]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape' && drilledIn) void actions.back();

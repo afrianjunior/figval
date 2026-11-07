@@ -196,6 +196,20 @@ describe('simple primitives', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Too loud');
   });
 
+  it('Pin links the button to its preview via aria-describedby', () => {
+    render(
+      <Pin aria-label="Note FV-3" preview="Too loud">
+        FV-3
+      </Pin>,
+    );
+    const tip = screen.getByRole('tooltip');
+    expect(tip.id).not.toBe('');
+    expect(screen.getByRole('button', { name: 'Note FV-3' })).toHaveAttribute(
+      'aria-describedby',
+      tip.id,
+    );
+  });
+
   it('uiCss is exported as a string', () => {
     expect(typeof uiCss).toBe('string');
   });
@@ -243,6 +257,25 @@ describe('ScrubNumber', () => {
       />
     );
   };
+
+  it('Escape stops propagation only when a draft exists', async () => {
+    const outer = vi.fn();
+    render(
+      <div onKeyDown={outer}>
+        <Harness />
+      </div>,
+    );
+    const input = screen.getByRole('spinbutton', { name: 'Font size' });
+    input.focus();
+    await userEvent.keyboard('{Escape}');
+    expect(outer).toHaveBeenCalledTimes(1);
+    outer.mockClear();
+    await userEvent.keyboard('9');
+    await userEvent.keyboard('{Escape}');
+    expect(outer).toHaveBeenCalledTimes(1);
+    expect(outer.mock.calls[0]?.[0].key).toBe('9');
+    expect(input).toHaveValue('16');
+  });
 
   it('arrow keys change by 1, Shift by 10, and clamp', async () => {
     render(<Harness />);

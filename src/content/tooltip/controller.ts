@@ -13,7 +13,7 @@ import { isDirty } from './model/selectors';
 import { initialState, type TooltipState } from './model/state';
 import { defaultTab } from './model/tab';
 import { makePreviewer } from './preview';
-import type { SessionCtx, TooltipDeps } from './session';
+import { makeFork, type SessionCtx, type TooltipDeps } from './session';
 import { makeStore } from './store';
 import { makeTextRow } from './textrow';
 import { mountView } from './view';
@@ -62,7 +62,7 @@ const wireStore = (ctx: SessionCtx, rerender: () => void): (() => void) =>
       ctx.previewer.apply(next);
     }
     if (prev.tab !== next.tab) {
-      Effect.runFork(
+      ctx.fork(
         ctx.deps.messenger
           .toBackground({ _tag: 'SettingsUpdate', patch: { lastTooltipTab: next.tab } })
           .pipe(Effect.catchAll((e) => Effect.logWarning('figval: tab not saved', e._tag))),
@@ -92,6 +92,7 @@ export const openSession = (
     if (boot.note) opts.registry.remove(boot.note.id);
 
     const host = yield* acquireOverlayHost({ doc, resolveAsset: input.resolveAsset });
+    const fork = makeFork(scope);
     const ctx: SessionCtx = {
       deps,
       target,
@@ -99,11 +100,12 @@ export const openSession = (
       doc,
       boot,
       scope,
+      fork,
       draftKey: draftKey(url),
       store: makeStore(startState(boot, target, opts)),
       previewer: makePreviewer(opts.anchor, doc),
       matches: makeMatchHighlighter(host.layer, doc),
-      drafts: makeDraftWriter(deps.sessionStore, draftKey(url)),
+      drafts: makeDraftWriter(deps.sessionStore, draftKey(url), fork),
       textRow: yield* makeTextRow(scope),
       previousFocus: doc.activeElement,
       ref: { el: opts.anchor },

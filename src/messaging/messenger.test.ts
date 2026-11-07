@@ -4,7 +4,7 @@ import { ElementNotFound, MessageDecodeError, MessageTimeout, NoteSaveError } fr
 import { RemoteFailure } from './errors';
 import { draft, note, noteId, session, tabId } from './fixtures';
 import { makeLoopbackTransport, makeMessengerLoopback, MessengerLoopback } from './loopback';
-import { makeMessenger, Messenger, type Handler } from './messenger';
+import { makeMessenger, Messenger, NON_IDEMPOTENT, type Handler } from './messenger';
 import type { Transport } from './transport';
 
 const run = <A, E>(eff: Effect.Effect<A, E, Messenger | Scope.Scope>, layer: Layer.Layer<Messenger> = MessengerLoopback) =>
@@ -44,6 +44,30 @@ describe('Messenger over loopback', () => {
       }),
     );
     expect(reply).toEqual([{ pong: true }, undefined]);
+  });
+
+  it('passes the simulated sender tab id to the handler context', async () => {
+    const seen: unknown[] = [];
+    const handler: Handler = (_req, ctx) => {
+      seen.push(ctx);
+      return Effect.succeed(note);
+    };
+    await run(
+      Effect.gen(function* () {
+        const m = yield* Messenger;
+        yield* m.serve('background', handler);
+        yield* m.toBackground({ _tag: 'NoteCreate', draft });
+      }),
+      makeMessengerLoopback({ senderTabId: 7 }),
+    );
+    await run(
+      Effect.gen(function* () {
+        const m = yield* Messenger;
+        yield* m.serve('background', handler);
+        yield* m.toBackground({ _tag: 'NoteCreate', draft });
+      }),
+    );
+    expect(seen).toEqual([{ senderTabId: 7 }, {}]);
   });
 
   it('passes the decoded request to the handler', async () => {
@@ -257,6 +281,34 @@ describe('Messenger client edge cases', () => {
     const err = await Effect.runPromise(call(makeMessenger(transport)).pipe(Effect.provide(TestContext.TestContext)));
     expect(state.sent).toBe(3);
     expect(err).toMatchObject({ _tag: 'MessageTimeout', ms: 0 });
+  });
+
+  it('never retries non-idempotent requests by default', async () => {
+    expect([...NON_IDEMPOTENT].sort()).toEqual(
+      ['NoteCreate', 'NoteDelete', 'SessionCreate', 'SessionDelete', 'SessionReorder'],
+    );
+    const { state, transport } = countingTransport([Effect.never]);
+    const m = makeMessenger(transport, { timeoutMs: 100 });
+    const err = await Effect.runPromise(
+      Effect.gen(function* () {
+        const fiber = yield* Effect.fork(Effect.flip(m.toBackground({ _tag: 'NoteCreate', draft })));
+        yield* TestClock.adjust('100 millis');
+        return yield* Fiber.join(fiber);
+      }).pipe(Effect.provide(TestContext.TestContext)),
+    );
+    expect(state.sent).toBe(1);
+    expect(err._tag).toBe('MessageTimeout');
+  });
+
+  it('lets an explicit retries option override the non-idempotent default', async () => {
+    const { state, transport } = countingTransport([Effect.fail('no receiver')]);
+    const m = makeMessenger(transport);
+    await Effect.runPromise(
+      Effect.flip(m.toBackground({ _tag: 'SessionCreate', name: 'X' }, { retries: 1 })).pipe(
+        Effect.provide(TestContext.TestContext),
+      ),
+    );
+    expect(state.sent).toBe(2);
   });
 
   it('escapes with MessageDecodeError in prod when the reply is garbage', async () => {

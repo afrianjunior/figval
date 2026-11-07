@@ -3,6 +3,7 @@ import { copy } from '../../copy';
 import { Badge, Checkbox, LayerRow, cx } from '../../ui';
 import type { RowVm } from '../model';
 import { usePanel } from './context';
+import { focusNeighbor } from './focusNeighbor';
 import { useShotUrl } from './hooks';
 
 const t = copy.panel.list;
@@ -36,6 +37,7 @@ export function NoteRow({ row, withCheckbox, withThumb, dragging, onGripDown, on
       onMove(note.id, event.key === 'ArrowUp' ? -1 : 1);
     } else if (event.key === 'Delete' && !(event.target instanceof HTMLInputElement)) {
       event.preventDefault();
+      focusNeighbor(event.currentTarget);
       void actions.deleteNote(note.id);
     }
   };

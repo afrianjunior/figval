@@ -267,6 +267,13 @@ describe('Clipboard, Download, SidePanel test layers', () => {
     expect(err._tag).toBe('ClipboardDenied');
   });
 
+  it('fails downloads when configured', async () => {
+    const err = await run(Effect.flip(Effect.flatMap(Download, (d) => d.markdown('a.md', 'x'))), {
+      download: { fail: true },
+    });
+    expect(err._tag).toBe('DownloadFailed');
+  });
+
   it('records downloads and side panel calls', async () => {
     const recorded = await run(
       Effect.gen(function* () {

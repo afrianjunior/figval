@@ -10,6 +10,7 @@ import {
 } from '../domain';
 import type { SettingsPatch } from '../messaging';
 import { Clock, Ids, Tabs } from '../platform';
+import { rollback } from './note-service';
 import { cascadeDeleteSession, SessionRepo, SettingsRepo } from '../storage';
 
 const sessionNotFound = () => new NoteSaveError({ reason: 'SessionNotFound' });
@@ -47,8 +48,12 @@ export const createSession = (name?: string) =>
       nextSeq: 1 as Session['nextSeq'],
       noteOrder: [],
     };
-    yield* (yield* SessionRepo).insert(session);
-    yield* setActive(id);
+    const sessions = yield* SessionRepo;
+    yield* sessions.insert(session);
+    yield* setActive(id).pipe(
+      // compensate: no orphan session when the settings write fails
+      Effect.tapError(() => rollback('session', sessions.remove(id))),
+    );
     return session;
   });
 

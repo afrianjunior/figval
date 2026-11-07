@@ -40,7 +40,10 @@ export interface Ctx {
   flashTimer: Fiber.RuntimeFiber<void> | null;
 }
 
-const knownTags: ReadonlySet<string> = new Set(ERROR_TAGS);
+/** Reply tags from the background and platform that the UI shows verbatim. */
+const PASSTHROUGH_TAGS = ['NoteNotFound', 'SessionNotFound', 'InvalidOrder', 'DownloadFailed'] as const;
+
+const knownTags: ReadonlySet<string> = new Set<string>([...ERROR_TAGS, ...PASSTHROUGH_TAGS]);
 
 /** Folds any action failure into the copy error tag the UI looks up. */
 export const toErrorTag = (e: unknown): ErrorTag => {

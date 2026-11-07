@@ -18,6 +18,10 @@ import { Clock, Ids, Tabs, type Rect, type TabInfo } from '../platform';
 import { NoteRepo, SessionRepo, SettingsRepo, ShotStore } from '../storage';
 import { captureCurrent, captureShots, cropRect, noShots, type CaptureTarget } from './capture';
 
+/** Wraps an effect in the runtime-wide write permit. */
+export type Lock = <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
+export const identityLock: Lock = (effect) => effect;
+
 const saveError = (e: { readonly _tag: string }): NoteSaveError =>
   e instanceof NoteSaveError ? e : new NoteSaveError({ reason: e._tag });
 
@@ -47,6 +51,13 @@ const shotsFor = (draft: NoteDraft, tabId: TabId | undefined, settings: Settings
       )
     : Effect.succeed(noShots);
 
+/** Best-effort undo; the original failure stays the reported one. */
+export const rollback = <R>(what: string, undo: Effect.Effect<void, unknown, R>) =>
+  undo.pipe(
+    // divergent: a failed undo must not mask the original error; log it instead
+    Effect.catchAll((e) => Effect.logWarning(`rollback of ${what} failed`, e)),
+  );
+
 const startSession = (settings: Settings, draft: NoteDraft) =>
   Effect.gen(function* () {
     const id = yield* (yield* Ids).sessionId;
@@ -60,8 +71,12 @@ const startSession = (settings: Settings, draft: NoteDraft) =>
       nextSeq: 1 as Session['nextSeq'],
       noteOrder: [],
     };
-    yield* (yield* SessionRepo).insert(session);
-    yield* (yield* SettingsRepo).put({ ...settings, activeSessionId: id });
+    const sessions = yield* SessionRepo;
+    yield* sessions.insert(session);
+    yield* (yield* SettingsRepo).put({ ...settings, activeSessionId: id }).pipe(
+      // compensate: no orphan session when the settings write fails
+      Effect.tapError(() => rollback('session', sessions.remove(id))),
+    );
     return session;
   });
 
@@ -93,27 +108,44 @@ const insertNote = (draft: NoteDraft, session: Session, shots: Note['shots']) =>
       ...draft,
       shots,
     };
-    yield* (yield* NoteRepo).insert(note);
-    yield* (yield* SessionRepo).replace({
-      ...session,
-      nextSeq: (session.nextSeq + 1) as Session['nextSeq'],
-      noteOrder: [...session.noteOrder, id],
-      updatedAt: now,
-    });
+    const notes = yield* NoteRepo;
+    yield* notes.insert(note);
+    yield* (yield* SessionRepo)
+      .replace({
+        ...session,
+        nextSeq: (session.nextSeq + 1) as Session['nextSeq'],
+        noteOrder: [...session.noteOrder, id],
+        updatedAt: now,
+      })
+      .pipe(
+        // compensate: no orphan note when the session write fails
+        Effect.tapError(() => rollback('note', notes.remove(session.id, id))),
+      );
     return note;
   });
 
 const removeShots = (shots: Note['shots']) =>
-  Effect.flatMap(ShotStore, (store) => store.removeMany(shotIdsOf(shots)).pipe(Effect.ignore));
+  Effect.flatMap(ShotStore, (store) => rollback('shots', store.removeMany(shotIdsOf(shots))));
 
-/** F2: settings → shots → ensure session → NoteRepo.insert(seq) → SessionRepo.replace. */
-export const createNote = (draft: NoteDraft, tabId?: TabId, rect?: Rect) =>
+/**
+ * F2: settings → shots (slow, outside the permit) → [permit: settings → ensure session →
+ * NoteRepo.insert(seq) → SessionRepo.replace].
+ */
+export const createNote = (
+  draft: NoteDraft,
+  tabId?: TabId,
+  rect?: Rect,
+  lock: Lock = identityLock,
+) =>
   Effect.gen(function* () {
     const settings = yield* (yield* SettingsRepo).get;
     const shots = yield* shotsFor(draft, tabId, settings, rect);
-    return yield* Effect.flatMap(ensureActive(settings, draft), (session) =>
-      insertNote(draft, session, shots),
-    ).pipe(Effect.tapError(() => removeShots(shots)));
+    const save = Effect.gen(function* () {
+      const current = yield* (yield* SettingsRepo).get;
+      const session = yield* ensureActive(current, draft);
+      return yield* insertNote(draft, session, shots);
+    });
+    return yield* lock(save).pipe(Effect.tapError(() => removeShots(shots)));
   }).pipe(Effect.mapError(saveError));
 
 /** Finds a note and its session; the active session is not assumed. */

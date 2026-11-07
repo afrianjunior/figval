@@ -56,7 +56,7 @@ export function Toasts({ shell, view }: { readonly shell: Shell; readonly view: 
   );
   const flash = shell.flashId === null ? undefined : FLASH_MESSAGES[shell.flashId];
   return (
-    <div className="fvp-toasts">
+    <div className="fvp-toasts" aria-live="polite">
       {shell.pendingDelete === null ? null : (
         <Toast
           message={t.deleted}

@@ -13,6 +13,7 @@ import { TabsLive, TabsTest } from './tabs';
 import { TestDriverLive, TestRecorderLive } from './test-driver';
 import type { CaptureTestConfig } from './capture';
 import type { ClipboardTestConfig } from './clipboard';
+import type { DownloadTestConfig } from './download';
 import type { TabId } from '../domain';
 import type { TabInfo } from './types';
 
@@ -38,6 +39,7 @@ export interface PlatformTestConfig {
   readonly scripting?: ScriptingTestConfig;
   readonly capture?: CaptureTestConfig;
   readonly clipboard?: ClipboardTestConfig;
+  readonly download?: DownloadTestConfig;
 }
 
 /** Every platform service backed by test layers; also provides TestRecorder and TestDriver. */
@@ -49,7 +51,7 @@ export const PlatformTest = (config: PlatformTestConfig = {}) => {
     PermissionsTest(config.permissions),
     CaptureTest(config.capture),
     ClipboardTest(config.clipboard),
-    DownloadTest,
+    DownloadTest(config.download),
     ClockFixed(config.now ?? 0),
     IdsSequence,
     SidePanelTest,

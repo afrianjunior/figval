@@ -206,6 +206,14 @@
     opacity var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
 }
+.fv-slot[data-edge~='right'] .fv-pin__preview {
+  left: auto;
+  right: 0;
+}
+.fv-slot[data-edge~='below'] .fv-pin__preview {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
 .fv-pin:hover .fv-pin__preview,
 .fv-pin:focus-within .fv-pin__preview {
   opacity: 1;

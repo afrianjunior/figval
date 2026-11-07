@@ -1,8 +1,10 @@
 import { Effect, Scope, Exit, Stream, Chunk, Fiber } from 'effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { emptyEdits, type Edits } from '../../domain';
+import { activePreviews } from './apply';
 import {
   computeBaseline,
+  disposeEdits,
   makeEditRegistry,
   pageSwatches,
   preview,
@@ -379,5 +381,61 @@ describe('pageSwatches', () => {
     expect(all).toContain('#222222');
     expect(all).not.toContain('#999999');
     expect(pageSwatches(document, 1)).toEqual(['#111111']);
+  });
+});
+
+describe('per-document edit state', () => {
+  const hideEdits: Edits = { ...emptyEdits, hidden: true };
+  const other = (): Document => {
+    const d = document.implementation.createHTMLDocument('other');
+    d.body.innerHTML = '<p id="b" style="color: blue">y</p>';
+    return d;
+  };
+
+  beforeEach(() => disposeEdits(document));
+
+  it('does not share preview state between documents', () => {
+    setup('<p id="a">x</p>');
+    const d2 = other();
+    const a = document.getElementById('a')!;
+    const b = d2.getElementById('b')!;
+    preview(a, hideEdits, document);
+    preview(b, hideEdits, d2);
+    expect([...activePreviews(document).keys()]).toEqual([a]);
+    expect([...activePreviews(d2).keys()]).toEqual([b]);
+    disposeEdits(d2);
+    expect(b.getAttribute('style')).toBe('color: blue');
+    expect(a.getAttribute('style')).toContain('display');
+    expect(activePreviews(document).size).toBe(1);
+    disposeEdits(document);
+  });
+
+  it('disposeEdits restores every element and empties the store', () => {
+    setup('<p id="a" style="margin: 1px">x</p><p id="c">z</p>');
+    const a = document.getElementById('a')!;
+    const c = document.getElementById('c')!;
+    const reg = makeEditRegistry(document);
+    preview(a, hideEdits, document);
+    reg.apply('n', c, hideEdits);
+    disposeEdits(document);
+    expect(a.getAttribute('style')).toBe('margin: 1px');
+    expect(c.hasAttribute('style')).toBe(false);
+    expect(activePreviews(document).size).toBe(0);
+    disposeEdits(document);
+  });
+
+  it('registry.release reverts everything and empties the registry', () => {
+    setup('<p id="a">x</p><p id="c">z</p>');
+    const a = document.getElementById('a')!;
+    const c = document.getElementById('c')!;
+    const reg = makeEditRegistry(document);
+    preview(a, hideEdits, document);
+    reg.apply('n', c, hideEdits);
+    reg.editsOff();
+    reg.release();
+    expect(a.hasAttribute('style')).toBe(false);
+    expect(c.hasAttribute('style')).toBe(false);
+    expect(reg.entries()).toEqual([]);
+    expect(reg.isOn()).toBe(true);
   });
 });

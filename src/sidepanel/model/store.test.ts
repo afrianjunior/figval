@@ -2,7 +2,8 @@ import { Effect } from 'effect';
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyEdits, type Note } from '../../domain';
-import { ChromeStorage, ShotStore, notesKey } from '../../storage';
+import { ChromeStorage, SessionStore, ShotStore, notesKey } from '../../storage';
+import { toErrorTag } from './context';
 import { usePanelStore } from './hook';
 import { activationKey, HOVER_KEY, missingKey } from './streams';
 import { boot, seedStore, type Booted } from './store-kit';
@@ -428,6 +429,28 @@ describe('page interaction', () => {
   });
 });
 
+describe('live stream resilience', () => {
+  it('keeps following session storage after a read error', async () => {
+    const b = await start(withTab);
+    await b.waitFor((m) => m.activeTab !== null);
+    b.harness.failSessionGetOnce.current = true;
+    await runTest(b.store, Effect.flatMap(SessionStore, (kv) => kv.set(activationKey(1), { active: true })));
+    await b.advance(1000);
+    await runTest(b.store, Effect.flatMap(SessionStore, (kv) => kv.set(HOVER_KEY, { noteId: nid(7) })));
+    await b.waitFor((m) => m.hoverNoteId === nid(7));
+    await runTest(b.store, Effect.flatMap(SessionStore, (kv) => kv.set(activationKey(1), { active: true })));
+    await b.waitFor((m) => m.activation.active);
+  });
+});
+
+describe('error tags', () => {
+  it.each(['NoteNotFound', 'SessionNotFound', 'InvalidOrder', 'DownloadFailed'])('passes %s through', (tag) => {
+    expect(toErrorTag({ _tag: 'RemoteFailure', tag })).toBe(tag);
+    expect(toErrorTag({ _tag: tag })).toBe(tag);
+    expect(toErrorTag({ _tag: 'Nope' })).toBe('InvariantViolation');
+  });
+});
+
 describe('export', () => {
   const seed = { sessions: [session], settings, notes: [pageNote(1, { comment: 'Make it calmer' }), mkNote(2)] };
   const NOW = Date.UTC(2026, 10, 7, 9, 0, 0);
@@ -462,6 +485,15 @@ describe('export', () => {
     const dl = (await b.recorded()).find((c) => c.op === 'markdown');
     expect(dl?.args[0]).toBe('figval-example.com-register-2026-11-07.md');
     expect(String(dl?.args[1])).toContain('Website review');
+  });
+
+  it('reports DownloadFailed when the save is cancelled', async () => {
+    const b = await start({ ...withTab, now: NOW }, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2 && m.activeTab !== null);
+    b.harness.failDownload.current = true;
+    await b.store.actions.exportDownload();
+    expect(b.model().ui.errors.export).toBe('DownloadFailed');
+    expect(b.model().ui.flashId).toBeNull();
   });
 
   it('does nothing while export is disabled', async () => {

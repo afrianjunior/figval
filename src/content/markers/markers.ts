@@ -13,6 +13,8 @@ const PULSE_MS = 900;
 const PIN_WIDTH = 56;
 const PIN_HEIGHT = 24;
 const PIN_OVERLAP = 8;
+const PREVIEW_WIDTH = 220;
+const PREVIEW_FLIP_TOP = 40;
 
 export interface MarkerLayerOptions {
   readonly doc: Document;
@@ -74,6 +76,8 @@ export const makeMarkerLayer = (
       const x = clamp(rect.right - PIN_OVERLAP, 0, Math.max(0, w - PIN_WIDTH));
       const y = clamp(rect.top - PIN_HEIGHT, 0, Math.max(0, h - PIN_HEIGHT));
       entry.slot.style.transform = `translate(${x}px, ${y}px)`;
+      const edges = [x > w - PREVIEW_WIDTH ? 'right' : '', y < PREVIEW_FLIP_TOP ? 'below' : ''];
+      entry.slot.dataset.edge = edges.filter(Boolean).join(' ');
     };
     const tick = (): void => {
       entries.forEach(place);
@@ -85,6 +89,7 @@ export const makeMarkerLayer = (
 
     const writeHover = (noteId: NoteId | null): void => {
       const value = noteId ? { noteId, at: Date.now() } : null;
+      // divergent: the hover key is a best-effort hint for the panel; a failed write must not disturb the pin.
       run(store.set(HOVER_KEY, value).pipe(Effect.ignore));
     };
     const reopen = (note: Note, el: Element): Effect.Effect<void> =>
@@ -150,18 +155,16 @@ export const makeMarkerLayer = (
         entries = found;
         syncEdits(found);
         tick();
-        return report(missing, next.length);
+        return report(missing);
       });
 
     // divergent: the report is fire-and-forget; a sleeping background must never block rendering.
-    const report = (ids: readonly NoteId[], total: number): Effect.Effect<void> =>
-      total === 0
-        ? Effect.void
-        : messenger.toBackground(MissingReport.make({ ids })).pipe(
-            Effect.catchAll((error) => Effect.logWarning('MissingReport failed', error._tag)),
-            Effect.forkDaemon,
-            Effect.asVoid,
-          );
+    const report = (ids: readonly NoteId[]): Effect.Effect<void> =>
+      messenger.toBackground(MissingReport.make({ ids })).pipe(
+        Effect.catchAll((error) => Effect.logWarning('MissingReport failed', error._tag)),
+        Effect.forkDaemon,
+        Effect.asVoid,
+      );
 
     const scrollTo = (noteId: NoteId): Effect.Effect<void> =>
       Effect.sync(() => {
