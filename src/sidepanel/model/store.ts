@@ -2,7 +2,7 @@ import { Effect, Exit, Layer, ManagedRuntime, Runtime, Schema, Scope, Stream, Su
 import { TabId } from '../../domain';
 import { makeEffectActions, type PanelActions } from './actions';
 import { settle } from './actions-notes';
-import { BOUND_TAB_POLL_MS, type Ctx, type PanelEnv } from './context';
+import { type Ctx, type PanelEnv } from './context';
 import { PanelState } from './panel-state';
 import { initialState, type ModelState } from './state';
 import { startStreams } from './streams';
@@ -16,6 +16,7 @@ export interface PanelSnapshot {
 export interface PanelStoreOptions {
   /** Bind to one tab (`?tab=<id>` in test mode) instead of following the active tab. */
   readonly boundTabId?: number;
+  /** @deprecated Ignored: the bound tab follows `Tabs.onUpdated` instead of polling. */
   readonly boundTabPollMs?: number;
 }
 
@@ -40,7 +41,6 @@ export const createPanelStore = <E>(layer: Layer.Layer<PanelEnv, E>, options: Pa
     ref,
     scope,
     boundTabId: options.boundTabId === undefined ? undefined : Schema.decodeSync(TabId)(options.boundTabId),
-    boundTabPollMs: options.boundTabPollMs ?? BOUND_TAB_POLL_MS,
     debounces: new Map(),
     deleteTimer: null,
     flashTimer: null,

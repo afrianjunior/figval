@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSettings, emptyEdits, type Note } from '../../domain';
 import { PanelState, Strip } from './panel-state';
-import { exportNotes } from './selection';
+import { exportNotes, mergeOrder } from './selection';
 import { emptyFilters, initialState, withUi, type ModelState } from './state';
 import { mkNote, mkSession, mkTab, nid, sessionIdOf } from './test-kit';
 import { derivePanelState, SEARCH_MIN_NOTES } from './view-model';
@@ -276,5 +276,15 @@ describe('export selection', () => {
   it('excludes the pending-delete note from exports', () => {
     const s = ui(base({ notes }), { pendingDelete: { id: nid(1), until: 1 } });
     expect(seqs(s)).toEqual([2, 3, 4]);
+  });
+});
+
+describe('mergeOrder', () => {
+  const n = nid;
+  it('refills only the slots of the moved notes', () => {
+    expect(mergeOrder([n(1), n(2), n(3), n(4)], [n(4), n(2)])).toEqual([n(1), n(4), n(3), n(2)]);
+  });
+  it('appends moved notes the session does not list yet', () => {
+    expect(mergeOrder([n(1)], [n(2), n(1)])).toEqual([n(1), n(2)]);
   });
 });

@@ -11,6 +11,7 @@ import {
   createSession,
   deleteSession,
   renameSession,
+  reorderSession,
   updateSettings,
 } from './sessions';
 
@@ -41,7 +42,7 @@ type Dispatched = Effect.Effect<unknown, { readonly _tag: string }, HandleEnv>;
 const dispatch = (req: Request): Dispatched => {
   switch (req._tag) {
     case 'NoteCreate':
-      return createNote(req.draft, req.tabId);
+      return createNote(req.draft, req.tabId, req.rect);
     case 'NoteUpdate':
       return updateNote(req.id, req.patch);
     case 'NoteDelete':
@@ -50,6 +51,8 @@ const dispatch = (req: Request): Dispatched => {
       return createSession(req.name);
     case 'SessionRename':
       return renameSession(req.id, req.name);
+    case 'SessionReorder':
+      return reorderSession(req.id, req.noteOrder);
     case 'SessionDelete':
       return deleteSession(req.id);
     case 'SessionActivate':

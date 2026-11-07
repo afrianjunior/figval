@@ -68,12 +68,15 @@ describe('store streams', () => {
     await b.waitFor((m) => m.activeTab?.id === tab1.id && !m.activation.unsupported);
   });
 
-  it('binds to ?tab=<id> and polls it for navigation', async () => {
+  it('binds to ?tab=<id> and follows its onUpdated events', async () => {
     const other = mkTab(2, 'https://other.com/a');
-    const b = await start({ tabs: [tab1, other], activeTabId: tab1.id }, { boundTabId: 2, boundTabPollMs: 100 });
+    const b = await start({ tabs: [tab1, other], activeTabId: tab1.id }, { boundTabId: 2 });
     await b.waitFor((m) => m.activeTab?.id === tid(2));
     await b.driver((d) => d.navigate(other.id, 'https://other.com/b'));
-    await b.advance(200);
+    await b.driver((d) => d.emitUpdate({ tabId: 1, status: 'complete' }));
+    await b.driver((d) => d.emitUpdate({ tabId: 2, status: 'loading' }));
+    expect(b.model().activeTab?.url).toBe('https://other.com/a');
+    await b.driver((d) => d.emitUpdate({ tabId: 2, status: 'complete' }));
     await b.waitFor((m) => m.activeTab?.url === 'https://other.com/b');
     expect(b.model().activeTab?.id).toBe(tid(2));
   });
@@ -581,10 +584,38 @@ describe('sessions, settings and local UI state', () => {
     await a.toggleSelected(nid(1));
     expect(b.model().ui).toMatchObject({ format: 'human', scope: 'page' });
     await a.clearSelection();
-    await a.reorder([nid(1)]);
-    expect(b.model().ui.localOrder).toEqual([nid(1)]);
     await a.navigate('settings');
     expect(b.store.getSnapshot().panel._tag).toBe('Settings');
+  });
+});
+
+describe('reorder', () => {
+  const ordered = { ...session, noteOrder: [nid(1), nid(2)] };
+  const seeded = { sessions: [ordered], settings, notes: [pageNote(1), pageNote(2)] };
+
+  it('persists the full order through SessionReorder and clears the local order', async () => {
+    const b = await start(withTab, {}, seeded);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.reorder([nid(2), nid(1)]);
+    expect(b.model().ui.localOrder).toBeNull();
+    await b.waitFor((m) => m.sessions[0]?.noteOrder[0] === nid(2));
+    expect(b.model().sessions[0]?.noteOrder).toEqual([nid(2), nid(1)]);
+  });
+
+  it('rolls back and reports reorder when the background fails', async () => {
+    const b = await start(withTab, {}, seeded);
+    await b.waitFor((m) => m.notes.length === 2);
+    b.harness.failBackground.current = 'StorageUnavailable';
+    await b.store.actions.reorder([nid(2), nid(1)]);
+    expect(b.model().ui.localOrder).toBeNull();
+    expect(b.model().ui.errors.reorder).toBe('StorageUnavailable');
+    expect(b.model().sessions[0]?.noteOrder).toEqual([nid(1), nid(2)]);
+  });
+
+  it('only keeps the optimistic order when there is no active session', async () => {
+    const b = await start(withTab, {}, { sessions: [], settings });
+    await b.store.actions.reorder([nid(1)]);
+    expect(b.model().ui.localOrder).toEqual([nid(1)]);
   });
 });
 

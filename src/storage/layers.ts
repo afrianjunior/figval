@@ -25,7 +25,7 @@ export const StorageLive = Layer.mergeAll(
 export const makeStorageMemory = (control?: FaultControl) =>
   Layer.mergeAll(
     ReposLive.pipe(Layer.provideMerge(ChromeStorageMemory(control))),
-    SessionStoreMemory(),
+    SessionStoreMemory(control),
     ShotStoreMemory,
   );
 

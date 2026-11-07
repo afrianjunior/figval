@@ -8,6 +8,25 @@ import { ShotStore } from '../storage';
 export const CAPTURE_GAP = Duration.millis(550);
 export const noShots: Shots = { before: null, after: null };
 
+/** CSS px added on every side of the element rect so outlines and shadows stay in the shot. */
+export const CROP_PADDING = 4;
+
+interface Viewport {
+  readonly w: number;
+  readonly h: number;
+}
+
+/** Pads the element rect and clamps it to the viewport (CSS px). Off-screen rects fall back to the viewport. */
+export const cropRect = (rect: Rect | undefined, viewport: Viewport): Rect => {
+  const full: Rect = { x: 0, y: 0, w: viewport.w, h: viewport.h };
+  if (rect === undefined) return full;
+  const x = Math.max(0, rect.x - CROP_PADDING);
+  const y = Math.max(0, rect.y - CROP_PADDING);
+  const right = Math.min(viewport.w, rect.x + rect.w + CROP_PADDING);
+  const bottom = Math.min(viewport.h, rect.y + rect.h + CROP_PADDING);
+  return right > x && bottom > y ? { x, y, w: right - x, h: bottom - y } : full;
+};
+
 export interface CaptureTarget {
   readonly tabId: TabId;
   readonly windowId: number;

@@ -19,6 +19,16 @@ const create = (draft: NoteDraft = draftOf(), tabId = 1): Promise<Note> =>
       m.toBackground({ _tag: 'NoteCreate', draft, tabId: tabIdOf(tabId) }),
     ),
   );
+const createWithRect = (rect: { x: number; y: number; w: number; h: number }) =>
+  h.run(
+    Effect.flatMap(Messenger, (m) =>
+      m.toBackground({ _tag: 'NoteCreate', draft: draftOf(), tabId: tabIdOf(1), rect }),
+    ),
+  );
+const cropArgs = () =>
+  h
+    .run(Effect.flatMap(TestRecorder, (r) => r.calls))
+    .then((calls) => calls.filter((c) => c.op === 'crop').map((c) => c.args));
 const update = (id: NoteId, patch: NotePatch): Promise<Note> =>
   h.run(Effect.flatMap(Messenger, (m) => m.toBackground({ _tag: 'NoteUpdate', id, patch })));
 const remove = (id: NoteId) =>
@@ -68,6 +78,30 @@ describe('NoteService.create', () => {
     expect(note.shots.before).not.toBeNull();
     expect(note.shots.after).toBeNull();
     expect(await recorded()).toEqual(['visibleTab', 'crop']);
+  });
+
+  it('crops to the padded element rect with the page dpr', async () => {
+    fresh();
+    await createWithRect({ x: 100, y: 50, w: 200, h: 80 });
+    expect(await cropArgs()).toEqual([[{ x: 96, y: 46, w: 208, h: 88 }, 2]]);
+  });
+
+  it('clamps the padded rect to the viewport', async () => {
+    fresh();
+    await createWithRect({ x: 1, y: 2, w: 900, h: 599 });
+    expect(await cropArgs()).toEqual([[{ x: 0, y: 0, w: 800, h: 600 }, 2]]);
+  });
+
+  it('falls back to the viewport for an off-screen rect', async () => {
+    fresh();
+    await createWithRect({ x: 2000, y: 2000, w: 10, h: 10 });
+    expect(await cropArgs()).toEqual([[{ x: 0, y: 0, w: 800, h: 600 }, 2]]);
+  });
+
+  it('crops to the viewport when there is no rect', async () => {
+    fresh();
+    await create();
+    expect(await cropArgs()).toEqual([[{ x: 0, y: 0, w: 800, h: 600 }, 2]]);
   });
 
   it('captures before with edits off and after with edits on', async () => {

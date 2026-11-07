@@ -3,6 +3,7 @@ import { defaultSessionName } from '../copy';
 import {
   NoteSaveError,
   normalizePage,
+  type NoteId,
   type Session,
   type SessionId,
   type Settings,
@@ -58,6 +59,24 @@ export const renameSession = (id: SessionId, name: string) =>
     const renamed: Session = { ...session, name, updatedAt: now };
     yield* (yield* SessionRepo).replace(renamed);
     return renamed;
+  });
+
+const isPermutation = (current: readonly NoteId[], next: readonly NoteId[]): boolean =>
+  current.length === next.length &&
+  new Set(next).size === next.length &&
+  next.every((id) => current.includes(id));
+
+/** Persists a new note order; it must be a permutation of the current one. */
+export const reorderSession = (id: SessionId, noteOrder: readonly NoteId[]) =>
+  Effect.gen(function* () {
+    const session = yield* requireSession(id);
+    if (!isPermutation(session.noteOrder, noteOrder)) {
+      return yield* Effect.fail(new NoteSaveError({ reason: 'InvalidOrder' }));
+    }
+    const now = yield* (yield* Clock).now;
+    const reordered: Session = { ...session, noteOrder: [...noteOrder], updatedAt: now };
+    yield* (yield* SessionRepo).replace(reordered);
+    return reordered;
   });
 
 /** Cascade (notes + shots); when it was active, the most recently updated remaining session takes over. */

@@ -5,6 +5,7 @@ import {
   normalizePageKey,
   tags,
   type Note,
+  type NoteId,
   type PageGroup,
 } from '../../domain';
 import { applyFilters, filterActive } from './filter';
@@ -86,3 +87,15 @@ export const exportCounts = (state: ModelState): ExportCounts => ({
   selected: forScope(state, 'selected').length,
   filtered: forScope(state, 'filtered').length,
 });
+
+/**
+ * Applies a (possibly partial) new order to the full session order: the slots the given notes
+ * occupied are refilled in the new sequence, every other note keeps its place.
+ */
+export const mergeOrder = (full: readonly NoteId[], moved: readonly NoteId[]): readonly NoteId[] => {
+  const movedSet = new Set(moved);
+  const queue = moved.filter((id) => full.includes(id));
+  const slots = full.map((id) => (movedSet.has(id) ? queue.shift() ?? id : id));
+  const known = new Set(slots);
+  return [...slots, ...moved.filter((id) => !known.has(id))];
+};

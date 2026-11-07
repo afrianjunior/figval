@@ -1,4 +1,5 @@
-import { Effect, Layer, ManagedRuntime, Stream } from 'effect';
+import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from 'effect';
+import { TabId } from '../domain';
 import { Messenger, MessengerLive } from '../messaging';
 import { Action, Commands, PlatformLive, SidePanel, Tabs } from '../platform';
 import { SessionStore, StorageLive } from '../storage';
@@ -42,14 +43,24 @@ const onTabRemoved = Stream.unwrap(Effect.map(Tabs, (t) => t.onRemoved)).pipe(
   ),
 );
 
-/** Tabs has no onUpdated stream; activeChanges carries the active tab's url on navigation. */
-const onNavigation = Stream.unwrap(Effect.map(Tabs, (t) => t.activeChanges)).pipe(
-  Stream.mapEffect((tab) => clearIfOriginChanged(tab).pipe(logged('navigation'))),
+const decodeTabId = Schema.decodeUnknownOption(TabId);
+
+/** A navigation starts as `loading` with a url; a new origin ends the activation. */
+const onNavigation = Stream.unwrap(Effect.map(Tabs, (t) => t.onUpdated)).pipe(
+  Stream.filterMap((u) =>
+    u.status === 'loading' && u.url !== undefined
+      ? Option.map(decodeTabId(u.tabId), (tabId) => ({ tabId, url: u.url ?? '' }))
+      : Option.none(),
+  ),
+  Stream.mapEffect(({ tabId, url }) =>
+    clearIfOriginChanged(tabId, url).pipe(logged('navigation')),
+  ),
 );
 
 export const program = Effect.gen(function* () {
   const context = yield* Effect.context<HandleEnv>();
   yield* (yield* Messenger).serve('background', asHandler(context));
+  yield* (yield* SessionStore).allowContentAccess.pipe(logged('content access'));
   yield* (yield* SidePanel).setPanelBehavior(true);
   yield* Effect.all(
     [

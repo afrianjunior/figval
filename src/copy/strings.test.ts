@@ -51,4 +51,34 @@ describe('copy', () => {
   it('interpolates the search query in the empty results line', () => {
     expect(copy.panel.states.noResults.line('xyz')).toBe('No notes match "xyz"');
   });
+
+  it('words the filter-only miss and the target state meta line', () => {
+    expect(copy.panel.states.noResults.filterLine).toBe('No notes match these filters');
+    expect(copy.panel.detail.meta('/register', 1440, 900, 'rest')).toBe(
+      '/register · 1440×900 · rest',
+    );
+    expect(copy.panel.detail.meta('/register', 1440, 900, 'hover')).toBe(
+      '/register · 1440×900 · hover',
+    );
+  });
+
+  it('exposes labels the side panel and tooltip need', () => {
+    expect(copy.panel.states.loading).toBe('Loading notes');
+    expect(copy.panel.detail.locatorParts.domPath).toBe('DOM path');
+    expect(Object.keys(copy.panel.detail.changeGroups)).toEqual([
+      'text',
+      'fill',
+      'typography',
+      'layout',
+      'visibility',
+    ]);
+    expect(copy.toasts.dismiss).toBe('Dismiss');
+    expect(copy.tooltip.edit.colorRow.openPicker).toBe('Open color picker');
+  });
+
+  it('names font weights and falls back to the bare number', () => {
+    expect(copy.tooltip.edit.fontWeightOption(400)).toBe('400 Regular');
+    expect(copy.tooltip.edit.fontWeightOption(600)).toBe('600 Semibold');
+    expect(copy.tooltip.edit.fontWeightOption(450)).toBe('450');
+  });
 });

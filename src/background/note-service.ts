@@ -14,19 +14,12 @@ import {
   type ShotId,
   type TabId,
 } from '../domain';
-import { Clock, Ids, Tabs, type TabInfo } from '../platform';
+import { Clock, Ids, Tabs, type Rect, type TabInfo } from '../platform';
 import { NoteRepo, SessionRepo, SettingsRepo, ShotStore } from '../storage';
-import { captureCurrent, captureShots, noShots, type CaptureTarget } from './capture';
+import { captureCurrent, captureShots, cropRect, noShots, type CaptureTarget } from './capture';
 
 const saveError = (e: { readonly _tag: string }): NoteSaveError =>
   e instanceof NoteSaveError ? e : new NoteSaveError({ reason: e._tag });
-
-const viewportRect = (page: NoteDraft['page']) => ({
-  x: 0,
-  y: 0,
-  w: page.viewport.w,
-  h: page.viewport.h,
-});
 
 /** The tab to capture: the one named by the message, else the active tab. None means no capture. */
 const resolveTab = (tabId: TabId | undefined) =>
@@ -34,20 +27,21 @@ const resolveTab = (tabId: TabId | undefined) =>
     tabId === undefined ? tabs.queryActive : tabs.get(tabId).pipe(Effect.option),
   );
 
-const captureTarget = (tab: TabInfo, page: NoteDraft['page']): CaptureTarget => ({
+/** No rect (re-capture on update) keeps the whole viewport. */
+const captureTarget = (tab: TabInfo, page: NoteDraft['page'], rect?: Rect): CaptureTarget => ({
   tabId: tab.id,
   windowId: tab.windowId,
-  rect: viewportRect(page),
+  rect: cropRect(rect, page.viewport),
   dpr: page.dpr,
 });
 
-const shotsFor = (draft: NoteDraft, tabId: TabId | undefined, settings: Settings) =>
+const shotsFor = (draft: NoteDraft, tabId: TabId | undefined, settings: Settings, rect?: Rect) =>
   settings.screenshots
     ? resolveTab(tabId).pipe(
         Effect.flatMap(
           Option.match({
             onNone: () => Effect.succeed(noShots),
-            onSome: (tab) => captureShots(captureTarget(tab, draft.page), hasEdits(draft)),
+            onSome: (tab) => captureShots(captureTarget(tab, draft.page, rect), hasEdits(draft)),
           }),
         ),
       )
@@ -113,10 +107,10 @@ const removeShots = (shots: Note['shots']) =>
   Effect.flatMap(ShotStore, (store) => store.removeMany(shotIdsOf(shots)).pipe(Effect.ignore));
 
 /** F2: settings → shots → ensure session → NoteRepo.insert(seq) → SessionRepo.replace. */
-export const createNote = (draft: NoteDraft, tabId?: TabId) =>
+export const createNote = (draft: NoteDraft, tabId?: TabId, rect?: Rect) =>
   Effect.gen(function* () {
     const settings = yield* (yield* SettingsRepo).get;
-    const shots = yield* shotsFor(draft, tabId, settings);
+    const shots = yield* shotsFor(draft, tabId, settings, rect);
     return yield* Effect.flatMap(ensureActive(settings, draft), (session) =>
       insertNote(draft, session, shots),
     ).pipe(Effect.tapError(() => removeShots(shots)));

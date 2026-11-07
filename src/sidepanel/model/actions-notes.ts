@@ -1,6 +1,6 @@
 import { Effect, Fiber } from 'effect';
 import { Messenger } from '../../messaging';
-import type { NoteId, NotePatch } from '../../domain';
+import type { NoteId, NotePatch, Session } from '../../domain';
 import {
   NOTE_DEBOUNCE_MS,
   UNDO_WINDOW_MS,
@@ -12,7 +12,8 @@ import {
   type Ctx,
   type PanelEnv,
 } from './context';
-import { toggled, withUi, withoutError } from './state';
+import { mergeOrder } from './selection';
+import { activeSessionOf, toggled, withUi, withoutError } from './state';
 
 const sendPending = (ctx: Ctx, id: NoteId): Effect.Effect<void, never, Messenger> =>
   Effect.gen(function* () {
@@ -96,8 +97,32 @@ export const undoDelete = (ctx: Ctx): Effect.Effect<void> =>
     yield* update(ctx, (s) => withUi(s, { pendingDelete: null }));
   });
 
-export const reorder = (ctx: Ctx, ids: readonly NoteId[]): Effect.Effect<void> =>
-  update(ctx, (s) => withUi(s, { localOrder: ids }));
+const persistOrder = (ctx: Ctx, ids: readonly NoteId[], session: Session) =>
+  Effect.gen(function* () {
+    const messenger = yield* Messenger;
+    yield* messenger.toBackground({
+      _tag: 'SessionReorder',
+      id: session.id,
+      noteOrder: mergeOrder(session.noteOrder, ids),
+    });
+    yield* update(ctx, (s) => withUi(s, { localOrder: null }));
+  });
+
+/** Shows the new order at once, persists it through the background, rolls back if that fails. */
+export const reorder = (ctx: Ctx, ids: readonly NoteId[]): Effect.Effect<void, never, Messenger> =>
+  Effect.gen(function* () {
+    const before = yield* getState(ctx);
+    const session = activeSessionOf(before);
+    yield* update(ctx, (s) => withUi(withoutError(s, 'reorder'), { localOrder: ids }));
+    if (session === null) return;
+    yield* persistOrder(ctx, ids, session).pipe(
+      Effect.catchAll((e) =>
+        update(ctx, (s) => withUi(s, { localOrder: before.ui.localOrder })).pipe(
+          Effect.zipRight(failTo(ctx, 'reorder')(e)),
+        ),
+      ),
+    );
+  });
 
 export const settle = (ctx: Ctx): Effect.Effect<void, never, Messenger> =>
   flushAllNotes(ctx).pipe(Effect.zipRight(commitPendingDelete(ctx)));

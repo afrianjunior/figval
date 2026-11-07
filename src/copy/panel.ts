@@ -1,6 +1,8 @@
 import { count, plural } from './plural';
 import { defaultSessionName } from './format';
 
+type MetaState = 'before' | 'after' | 'rest' | 'hover' | 'focus';
+
 const noteCount = (n: number): string => count(n, 'note', 'notes');
 
 export const panel = {
@@ -21,7 +23,7 @@ export const panel = {
       active: 'Click any element on the page, or select text to add a note.',
       picking: 'Click the element you want to note. Esc cancels.',
       unsupported: "Figval can't run on this page.",
-      permissionDeclined: 'Site access was declined, so Figval can\'t pick elements here.',
+      permissionDeclined: "Site access was declined, so Figval can't pick elements here.",
       injectionFailed: "Figval couldn't start on this page. Reload the page, then try again.",
     },
     retry: 'Try again',
@@ -56,7 +58,9 @@ export const panel = {
       line: 'Pick an element or select text on the page to leave your first note.',
       cta: 'Pick element',
     },
-    emptySession: { line: 'This session has no notes yet. Pick an element or select text to add one.' },
+    emptySession: {
+      line: 'This session has no notes yet. Pick an element or select text to add one.',
+    },
     emptyCurrentPage: { line: 'No notes on this page yet.' },
     unsupported: { line: "Figval can't run on this page. Your notes and export still work." },
     notActivated: {
@@ -74,8 +78,10 @@ export const panel = {
     },
     noResults: {
       line: (query: string): string => `No notes match "${query}"`,
+      filterLine: 'No notes match these filters',
       reset: 'Reset filters',
     },
+    loading: 'Loading notes',
     storageError: { line: "That didn't save. Nothing was lost, so try again." },
     exportNothingSelected: { hint: 'Check at least one note to export.' },
   },
@@ -83,8 +89,8 @@ export const panel = {
     back: 'Back',
     title: (id: string, label: string): string => `${id} · ${label}`,
     menuLabel: 'Note menu',
-    meta: (path: string, width: number, height: number, variant: 'before' | 'after'): string =>
-      `${path} · ${width}×${height} · ${variant}`,
+    meta: (path: string, width: number, height: number, state: MetaState): string =>
+      `${path} · ${width}×${height} · ${state}`,
     comment: 'Comment',
     why: 'Why',
     addReason: '+ Add reason',
@@ -102,6 +108,14 @@ export const panel = {
     copyAfter: 'Copy after',
     noScreenshot: 'No screenshot',
     locator: 'Locator',
+    locatorParts: { domPath: 'DOM path', selector: 'Selector', html: 'HTML' },
+    changeGroups: {
+      text: 'Text',
+      fill: 'Fill',
+      typography: 'Typography',
+      layout: 'Layout',
+      visibility: 'Visibility',
+    },
     deleteNote: 'Delete note',
     notFoundExplanation:
       "Figval can't find this element on the page anymore. The page may have changed. The note is still saved, and so is its screenshot.",

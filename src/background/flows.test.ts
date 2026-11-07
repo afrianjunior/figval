@@ -69,14 +69,14 @@ describe('Activation.ensure', () => {
   it('clears the state on close and when the origin changes', async () => {
     fresh();
     await send(activate(1));
-    await h.run(clearIfOriginChanged(tab(1, 'https://example.com/other')));
+    await h.run(clearIfOriginChanged(tabIdOf(1), 'https://example.com/other'));
     expect(await stored(activationKey(tabIdOf(1)))).toBeDefined();
-    await h.run(clearIfOriginChanged(tab(1, 'https://other.org/')));
+    await h.run(clearIfOriginChanged(tabIdOf(1), 'https://other.org/'));
     expect(await stored(activationKey(tabIdOf(1)))).toBeUndefined();
     await send(activate(1));
     await h.run(clearActivation(tabIdOf(1)));
     expect(await stored(activationKey(tabIdOf(1)))).toBeUndefined();
-    await h.run(clearIfOriginChanged(tab(5)));
+    await h.run(clearIfOriginChanged(tabIdOf(5), 'https://example.com/page'));
   });
 });
 
@@ -108,6 +108,25 @@ describe('sessions and settings', () => {
     expect(await fail({ _tag: 'SessionRename', id, name: 'x' })).toMatchObject({
       tag: 'SessionNotFound',
     });
+  });
+
+  it('reorders notes when the order is a permutation and rejects anything else', async () => {
+    fresh();
+    const a = await send({ _tag: 'NoteCreate', draft: draftOf(), tabId: tabIdOf(1) });
+    const b = await send({ _tag: 'NoteCreate', draft: draftOf(), tabId: tabIdOf(1) });
+    const id = a.sessionId;
+    const reordered = await send({ _tag: 'SessionReorder', id, noteOrder: [b.id, a.id] });
+    expect(reordered.noteOrder).toEqual([b.id, a.id]);
+    const saved = await h.run(Effect.flatMap(SessionRepo, (r) => r.get(id)));
+    expect(saved._tag === 'Some' && saved.value.noteOrder).toEqual([b.id, a.id]);
+    for (const noteOrder of [[a.id], [a.id, a.id], [a.id, '00000000-0000-4000-8000-000000000000' as typeof a.id]]) {
+      expect(await fail({ _tag: 'SessionReorder', id, noteOrder })).toMatchObject({
+        tag: 'InvalidOrder',
+      });
+    }
+    expect(
+      await fail({ _tag: 'SessionReorder', id: 'fv-zzzz' as SessionId, noteOrder: [] }),
+    ).toMatchObject({ tag: 'SessionNotFound' });
   });
 
   it('deleting a session cascades notes and shots and moves the active pointer', async () => {

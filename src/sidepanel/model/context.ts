@@ -24,7 +24,6 @@ export type PanelEnv =
 export const NOTE_DEBOUNCE_MS = 400;
 export const UNDO_WINDOW_MS = 5000;
 export const FLASH_MS = 1500;
-export const BOUND_TAB_POLL_MS = 1000;
 
 export interface PendingPatch {
   readonly patch: NotePatch;
@@ -36,7 +35,6 @@ export interface Ctx {
   readonly ref: SubscriptionRef.SubscriptionRef<ModelState>;
   readonly scope: Scope.Scope;
   readonly boundTabId: TabId | undefined;
-  readonly boundTabPollMs: number;
   readonly debounces: Map<NoteId, PendingPatch>;
   deleteTimer: Fiber.RuntimeFiber<void> | null;
   flashTimer: Fiber.RuntimeFiber<void> | null;

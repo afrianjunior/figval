@@ -20,7 +20,8 @@ export type ErrorTag = (typeof ERROR_TAGS)[number];
 export const errors: Readonly<Record<ErrorTag, string>> = {
   StorageQuotaExceeded: 'Browser storage is full. Delete a note or a session, then try again.',
   StorageCorrupt: "Some saved notes couldn't be read and were skipped. The rest are fine.",
-  StorageUnavailable: "Figval can't reach browser storage right now. Reload the extension and try again.",
+  StorageUnavailable:
+    "Figval can't reach browser storage right now. Reload the extension and try again.",
   ShotStoreError: "The screenshot couldn't be saved or loaded. The note itself is fine.",
   UnsupportedPage: "Figval can't run on this page.",
   PermissionDenied: "Site access was declined, so Figval can't pick elements here.",

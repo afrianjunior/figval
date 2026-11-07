@@ -140,6 +140,16 @@ const backgroundHandler =
             return session;
           }),
         );
+      case 'SessionReorder':
+        return swallow(
+          Effect.gen(function* () {
+            const found = yield* sessions.get(req.id);
+            if (Option.isNone(found)) return yield* Effect.fail('unknown session');
+            const next = { ...found.value, noteOrder: req.noteOrder };
+            yield* sessions.replace(next);
+            return next;
+          }),
+        );
       case 'SessionRename':
         return swallow(
           Effect.gen(function* () {

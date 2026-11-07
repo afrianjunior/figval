@@ -6,6 +6,7 @@ import {
   makeFaultControl,
   makeMemoryShotStore,
   makeStorageMemory,
+  SessionStoreMemory,
   ShotStore,
   type ShotStoreService,
 } from '../storage';
@@ -87,6 +88,8 @@ export const makeHarness = (options: HarnessOptions = {}) => {
   );
   const base = Layer.mergeAll(
     makeStorageMemory(fault),
+    // divergent: makeStorageMemory does not hand its FaultControl to SessionStoreMemory (see Needs)
+    SessionStoreMemory(fault),
     Layer.succeed(ShotStore, shotSpy),
     PlatformTest({ tabs: [tab(1)], activeTabId: tabIdOf(1), now: NOV_7_2026, ...options.platform }),
     makeMessengerLoopback(),

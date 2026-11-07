@@ -1,6 +1,22 @@
+const fontWeightNames: Readonly<Record<number, string>> = {
+  100: 'Thin',
+  200: 'Extra light',
+  300: 'Light',
+  400: 'Regular',
+  500: 'Medium',
+  600: 'Semibold',
+  700: 'Bold',
+  800: 'Extra bold',
+  900: 'Black',
+};
+
 export const tooltip = {
   tabs: { comment: 'Comment', edit: 'Edit' },
-  header: { labelPlaceholder: 'Label this note', close: 'Close', provisionalId: (seq: number): string => `FV-${seq}` },
+  header: {
+    labelPlaceholder: 'Label this note',
+    close: 'Close',
+    provisionalId: (seq: number): string => `FV-${seq}`,
+  },
   comment: {
     placeholder: 'What should change, and why?',
     addReason: '+ Add reason',
@@ -31,6 +47,23 @@ export const tooltip = {
       alignRight: 'Align right',
       hide: 'Hide this element',
     },
+    colorRow: {
+      openPicker: 'Open color picker',
+      hexField: 'Hex color',
+      picker: 'Color picker',
+      pageSwatches: 'Colors on this page',
+    },
+    handles: {
+      fontSize: 'Size',
+      radius: 'Radius',
+      paddingVertical: 'Pad V',
+      paddingHorizontal: 'Pad H',
+    },
+    fontWeightNames,
+    fontWeightOption: (weight: number): string => {
+      const name = fontWeightNames[weight];
+      return name ? `${weight} ${name}` : String(weight);
+    },
     scope: {
       label: 'Scope',
       onlyThis: 'Only this',
@@ -39,14 +72,14 @@ export const tooltip = {
     resetAll: 'Reset all',
     reset: 'Reset',
     changedDot: 'Changed',
-    noEditableText: "This element has no text to edit. Use the style controls instead.",
+    noEditableText: 'This element has no text to edit. Use the style controls instead.',
     editing: (selector: string): string => `Editing: ${selector}`,
     textSummary: (before: string, after: string): string => `"${before}" → "${after}"`,
   },
   scroll: { above: '↑ element above', below: '↓ element below' },
   status: {
     reapplied: 'Element changed, edits re-applied',
-    elementGone: "This element is gone from the page. You can still save your note as a comment.",
+    elementGone: 'This element is gone from the page. You can still save your note as a comment.',
     saveFailed: "Couldn't save. Your note is still here, so try again.",
     discardConfirm: 'Press Esc again to discard',
   },
@@ -77,6 +110,7 @@ export const keys = {
 } as const;
 
 export const toasts = {
+  dismiss: 'Dismiss',
   deleted: 'Deleted',
   undo: 'Undo',
   copied: 'Copied to clipboard',

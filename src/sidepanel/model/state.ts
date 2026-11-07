@@ -15,6 +15,7 @@ export type ErrorKey =
   | 'settings'
   | 'beforeAfter'
   | 'delete'
+  | 'reorder'
   | 'markers'
   | 'scroll'
   | 'edit'

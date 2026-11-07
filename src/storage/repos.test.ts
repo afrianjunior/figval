@@ -6,7 +6,7 @@ import { notesKey } from './keys';
 import { makeFaultControl } from './memory-kv';
 import { migrate } from './decode';
 import { NoteRepo } from './note-repo';
-import { ChromeStorage } from './services';
+import { ChromeStorage, SessionStore } from './services';
 import { SessionRepo } from './session-repo';
 import { SettingsRepo } from './settings-repo';
 import { makeStorageMemory } from './layers';
@@ -234,5 +234,17 @@ describe('NoteRepo', () => {
     control.set({ kind: 'unavailable' });
     const err = await run(Effect.flip(Effect.flatMap(NoteRepo, (n) => n.list(sessionA))), control);
     expect(err._tag).toBe('StorageUnavailable');
+  });
+});
+
+describe('makeStorageMemory', () => {
+  it('shares the fault control with the session store', async () => {
+    const control = makeFaultControl();
+    await Effect.runPromise(
+      Effect.flatMap(SessionStore, (s) => s.allowContentAccess).pipe(
+        Effect.provide(makeStorageMemory(control)),
+      ),
+    );
+    expect(control.contentAccessGrants()).toBe(1);
   });
 });

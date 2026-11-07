@@ -24,7 +24,13 @@ describe('background program', () => {
         yield* driver.clickAction(id);
         yield* settle;
         const afterClick = yield* store.get(activationKey(id));
+        yield* driver.emitUpdate({ tabId: id, status: 'complete' });
+        yield* driver.emitUpdate({ tabId: id, status: 'loading', url: 'https://example.com/next' });
+        yield* settle;
+        const sameOrigin = yield* store.get(activationKey(id));
+        yield* store.set(missingKey(id), []);
         yield* driver.navigate(id, 'https://other.org/');
+        yield* driver.emitUpdate({ tabId: id, status: 'loading', url: 'https://other.org/' });
         yield* settle;
         const afterNavigate = yield* store.get(activationKey(id));
         yield* driver.emitCommand('other');
@@ -37,7 +43,9 @@ describe('background program', () => {
         const calls = yield* (yield* TestRecorder).calls;
         return {
           afterClick,
+          sameOrigin,
           afterNavigate,
+          missingAfterNav: yield* store.get(missingKey(id)),
           afterCommand,
           afterClose: yield* store.get(activationKey(id)),
           missing: yield* store.get(missingKey(id)),
@@ -46,11 +54,14 @@ describe('background program', () => {
       }),
     );
     expect(result.afterClick).toMatchObject({ active: true });
+    expect(result.sameOrigin).toMatchObject({ active: true });
     expect(result.afterNavigate).toBeUndefined();
+    expect(result.missingAfterNav).toBeUndefined();
     expect(result.afterCommand).toMatchObject({ origin: 'https://other.org' });
     expect(result.afterClose).toBeUndefined();
     expect(result.missing).toBeUndefined();
     expect(result.panel).toEqual([{ service: 'SidePanel', op: 'setPanelBehavior', args: [true] }]);
+    expect(h.fault.contentAccessGrants()).toBe(1);
     expect(h.contentCalls.filter((c) => c === 'PickerStart')).toHaveLength(2);
   });
 });

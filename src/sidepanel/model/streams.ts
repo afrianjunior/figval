@@ -57,12 +57,15 @@ const tabStream = (ctx: Ctx): Stream.Stream<ActiveTab, never, Tabs> =>
           tabs.activeChanges,
         );
       }
-      // The bound tab is usually not the focused one (test mode), so poll it for navigation.
+      // The bound tab is usually not the focused one (test mode): follow its own updates.
       const read = tabs.get(bound).pipe(Effect.option, Effect.map(Option.getOrNull));
       return Stream.mergeAll(
         [
           Stream.fromEffect(read),
-          Stream.tick(ctx.boundTabPollMs).pipe(Stream.mapEffect(() => read)),
+          tabs.onUpdated.pipe(
+            Stream.filter((u) => u.tabId === bound && (u.status === 'complete' || u.url !== undefined)),
+            Stream.mapEffect(() => read),
+          ),
           tabs.activeChanges.pipe(Stream.filter((t) => t.id === bound)),
         ],
         { concurrency: 3 },

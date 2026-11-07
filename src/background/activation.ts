@@ -3,7 +3,7 @@ import { UnsupportedPage, type TabId } from '../domain';
 import { Messenger } from '../messaging';
 import { Scripting, Tabs, unsupportedUrl, type TabInfo } from '../platform';
 import { SessionStore } from '../storage';
-import { activationKey, originOf } from './keys';
+import { activationKey, missingKey, originOf } from './keys';
 import type { ActivateVia } from '../messaging';
 
 const PING_TIMEOUT_MS = 300;
@@ -53,14 +53,16 @@ export const ensureActivation = (tabId: TabId, via: ActivateVia) =>
 export const clearActivation = (tabId: TabId) =>
   Effect.flatMap(SessionStore, (store) => store.remove([activationKey(tabId)]));
 
-/** Drops the activation of a tab that navigated to another origin. */
-export const clearIfOriginChanged = (tab: TabInfo) =>
+/** Drops activation and missing report of a tab that navigated to another origin. */
+export const clearIfOriginChanged = (tabId: TabId, url: string) =>
   Effect.gen(function* () {
     const store = yield* SessionStore;
-    const stored = yield* store.get(activationKey(tab.id));
+    const stored = yield* store.get(activationKey(tabId));
     const origin =
       typeof stored === 'object' && stored !== null && 'origin' in stored
         ? stored.origin
         : undefined;
-    if (origin !== undefined && origin !== originOf(tab.url)) yield* clearActivation(tab.id);
+    if (origin === undefined || origin === originOf(url)) return;
+    yield* store.remove([missingKey(tabId)]);
+    yield* clearActivation(tabId);
   });
