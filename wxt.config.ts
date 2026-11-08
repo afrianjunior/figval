@@ -20,10 +20,12 @@ export default defineConfig({
     },
   },
   manifest: ({ mode }) => ({
-    name: 'Figval',
+    // Chrome Web Store title: max 75 characters. Keywords here weigh most in store search.
+    name: 'Figval: Annotate Websites & Export Markdown for AI Agents',
+    short_name: 'Figval',
     // Chrome Web Store summary: max 132 characters.
     description:
-      'Comment on elements of a live page, then export your notes as Markdown for a teammate or a coding agent.',
+      'Click an element, comment or tweak its text and CSS, then export clean Markdown for Cursor, Claude Code or a teammate. No account.',
     permissions: [
       'sidePanel',
       'activeTab',
