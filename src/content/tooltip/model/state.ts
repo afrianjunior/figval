@@ -24,6 +24,8 @@ export interface TooltipState {
   readonly elementStatus: ElementStatus;
   readonly selectionText: string | null;
   readonly resume: { readonly seq: number; readonly snapshot: DraftSnapshot } | null;
+  /** First-note hint (Comment vs Edit). UI only: never part of the dirty snapshot. */
+  readonly showHint: boolean;
 }
 
 export interface InitOptions {
@@ -39,6 +41,7 @@ export interface InitOptions {
   readonly edits?: Edits;
   readonly selectionText?: string | null;
   readonly resume?: { readonly seq: number; readonly snapshot: DraftSnapshot } | null;
+  readonly showHint?: boolean;
 }
 
 export type Action =
@@ -59,7 +62,8 @@ export type Action =
   | { readonly type: 'saveFailed'; readonly tag: string }
   | { readonly type: 'elementStatus'; readonly value: ElementStatus }
   | { readonly type: 'hydrate'; readonly snapshot: DraftSnapshot }
-  | { readonly type: 'dismissResume' };
+  | { readonly type: 'dismissResume' }
+  | { readonly type: 'dismissHint' };
 
 const controlsFromEdits = (
   edits: Edits | undefined,
@@ -101,6 +105,7 @@ export const initialState = (o: InitOptions): TooltipState => {
     elementStatus: 'ok',
     selectionText: o.selectionText ?? null,
     resume: o.resume ?? null,
+    showHint: o.showHint ?? false,
   };
   return { ...base, initialKey: snapshotKey(base) };
 };
@@ -168,6 +173,8 @@ export const reduce = (s: TooltipState, a: Action): TooltipState => {
       return hydrate(s, a.snapshot);
     case 'dismissResume':
       return { ...s, resume: null };
+    case 'dismissHint':
+      return { ...s, showHint: false };
   }
 };
 

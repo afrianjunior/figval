@@ -1,5 +1,13 @@
 import { defineConfig } from 'wxt';
 
+// Exported from design/logo-proposals/figval-logo-a.figcraft (frame "Figval logo A / 128").
+const ICONS = {
+  16: '/icon/16.png',
+  32: '/icon/32.png',
+  48: '/icon/48.png',
+  128: '/icon/128.png',
+};
+
 export default defineConfig({
   srcDir: 'src',
   outDir: '.output',
@@ -13,6 +21,9 @@ export default defineConfig({
   },
   manifest: ({ mode }) => ({
     name: 'Figval',
+    // Chrome Web Store summary: max 132 characters.
+    description:
+      'Comment on elements of a live page, then export your notes as Markdown for a teammate or a coding agent.',
     permissions: [
       'sidePanel',
       'activeTab',
@@ -23,7 +34,8 @@ export default defineConfig({
     ],
     optional_host_permissions: ['<all_urls>'],
     ...(mode === 'test' ? { host_permissions: ['<all_urls>'] } : {}),
-    action: { default_title: 'Figval' },
+    icons: ICONS,
+    action: { default_title: 'Figval', default_icon: ICONS },
     commands: {
       pick: {
         suggested_key: { default: 'Alt+Shift+F' },

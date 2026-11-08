@@ -14,6 +14,14 @@ const start = (over: Partial<Parameters<typeof initialState>[0]> = {}): TooltipS
   });
 
 describe('tooltip reducer', () => {
+  it('shows the first-note hint only when asked, and hides it without dirtying the note', () => {
+    expect(start().showHint).toBe(false);
+    const hinted = start({ showHint: true });
+    const hidden = reduce(hinted, { type: 'dismissHint' });
+    expect(hidden.showHint).toBe(false);
+    expect(isDirty(hidden)).toBe(false);
+  });
+
   it('starts empty and clean', () => {
     const s = start();
     expect(isDirty(s)).toBe(false);

@@ -96,6 +96,14 @@ export function TooltipView(props: TooltipViewProps) {
             </Button>
           </div>
         ) : null}
+        {state.showHint ? (
+          <div role="note" className="fv-tip__hint">
+            <p className="fv-tip__hint-text">{t.hint.body}</p>
+            <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'dismissHint' })}>
+              {t.hint.dismiss}
+            </Button>
+          </div>
+        ) : null}
         <TabBar
           tab={gone ? 'comment' : state.tab}
           editDisabled={gone}

@@ -288,3 +288,29 @@ describe('mergeOrder', () => {
     expect(mergeOrder([n(1)], [n(2), n(1)])).toEqual([n(1), n(2)]);
   });
 });
+
+describe('onboarding checklist', () => {
+  const fresh = base({ settings: defaultSettings, sessions: [], activation: initialState.activation });
+  const checklistOf = (s: ModelState) => {
+    const p = derivePanelState(s);
+    if (p._tag === 'Loading') throw new Error('loading');
+    return p.shell.checklist;
+  };
+
+  it('starts with nothing ticked on a fresh install', () => {
+    expect(checklistOf(fresh)).toEqual({ picked: false, noted: false, exported: false });
+  });
+
+  it('ticks pick once the picker is active on a tab', () => {
+    expect(checklistOf({ ...fresh, activation: { ...fresh.activation, active: true } })).toMatchObject({ picked: true, noted: false });
+  });
+
+  it('ticks pick and note once a session exists, and export from settings', () => {
+    expect(checklistOf(base({ activation: initialState.activation }))).toEqual({ picked: true, noted: true, exported: false });
+  });
+
+  it('goes away when every step is done or the user dismissed it', () => {
+    expect(checklistOf(base({ settings: { ...defaultSettings, activeSessionId: session.id, exportedOnce: true } }))).toBeNull();
+    expect(checklistOf({ ...fresh, settings: { ...defaultSettings, checklistDismissed: true } })).toBeNull();
+  });
+});

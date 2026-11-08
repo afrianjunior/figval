@@ -3,6 +3,7 @@ import { findSimilar } from '../../locator';
 import { computeBaseline } from '../edit';
 import { acquireOverlayHost, type OverlayHost, type TooltipOpenOptions } from '../picker';
 import type { Target } from '../../domain';
+import type { SettingsPatch } from '../../messaging';
 import { makeActions, type Actions } from './actions';
 import { loadBoot, type Boot } from './boot';
 import { makeDraftWriter } from './drafts';
@@ -48,25 +49,30 @@ const startState = (boot: Boot, target: Target, opts: TooltipOpenOptions): Toolt
     label: note?.target.label ?? target.label,
     ...(note
       ? { comment: note.comment, why: note.why, forceApply: note.forceApply, edits: note.edits }
-      : {}),
+      : { forceApply: boot.settings.lastForceApply }),
     selectionText: opts.selectionText ?? target.selection?.text ?? null,
     resume: boot.resume ? { seq: boot.resume.seq, snapshot: boot.resume.snapshot } : null,
+    showHint: opts.mode === 'new' && !boot.settings.tooltipHintSeen,
   });
 };
 
-/** Keeps the page preview, the persisted draft and the last-used tab in step with the store. */
+const rememberSetting = (ctx: SessionCtx, patch: SettingsPatch, what: string): void =>
+  ctx.fork(
+    ctx.deps.messenger
+      .toBackground({ _tag: 'SettingsUpdate', patch })
+      .pipe(Effect.catchAll((e) => Effect.logWarning(`figval: ${what} not saved`, e._tag))),
+  );
+
+/** Keeps the page preview, the persisted draft and the remembered tooltip choices in step with the store. */
 const wireStore = (ctx: SessionCtx, rerender: () => void): (() => void) =>
   ctx.store.subscribe((prev, next) => {
     if (ctx.flags.closed) return;
     if (prev.controls !== next.controls || prev.elementStatus !== next.elementStatus) {
       ctx.previewer.apply(next);
     }
-    if (prev.tab !== next.tab) {
-      ctx.fork(
-        ctx.deps.messenger
-          .toBackground({ _tag: 'SettingsUpdate', patch: { lastTooltipTab: next.tab } })
-          .pipe(Effect.catchAll((e) => Effect.logWarning('figval: tab not saved', e._tag))),
-      );
+    if (prev.tab !== next.tab) rememberSetting(ctx, { lastTooltipTab: next.tab }, 'tab');
+    if (prev.forceApply !== next.forceApply) {
+      rememberSetting(ctx, { lastForceApply: next.forceApply }, 'force-apply choice');
     }
     if (next.resume === null && next.mode === 'new') {
       ctx.drafts.schedule(
@@ -167,6 +173,8 @@ export const openSession = (
     view.attach(follower);
     view.render(true);
     follower.reposition();
+    // Shown once: marked seen as soon as it appears, whether it is closed or ignored.
+    if (ctx.store.get().showHint) rememberSetting(ctx, { tooltipHintSeen: true }, 'hint seen');
 
     yield* wireFinalizers(ctx, view, [
       wireStore(ctx, view.render),

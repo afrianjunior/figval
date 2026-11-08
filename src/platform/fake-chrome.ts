@@ -41,9 +41,16 @@ export const makeFakeChrome = (options: { id?: string; senderId?: string; sender
   const onRemoved = fakeEvent<[number]>();
   const onCommand = fakeEvent<[string]>();
   const onClicked = fakeEvent<[FakeTab]>();
+  const onInstalled = fakeEvent<[{ reason: string }]>();
 
   const api = {
-    runtime: { id, onMessage, sendMessage: vi.fn(deliver) },
+    runtime: {
+      id,
+      onMessage,
+      onInstalled,
+      sendMessage: vi.fn(deliver),
+      getURL: vi.fn((path: string) => `chrome-extension://${id}${path}`),
+    },
     tabs: {
       onActivated,
       onUpdated,
@@ -54,6 +61,7 @@ export const makeFakeChrome = (options: { id?: string; senderId?: string; sender
         return tab ? Promise.resolve(tab) : Promise.reject(new Error('No tab'));
       }),
       query: vi.fn<(q: unknown) => Promise<FakeTab[]>>(() => Promise.resolve(tabs.filter((t) => t.active))),
+      create: vi.fn<(o: { url: string }) => Promise<FakeTab>>(() => Promise.resolve({ id: 99, windowId: 9 })),
       captureVisibleTab: vi.fn<(w: number, o: unknown) => Promise<string>>(() => Promise.resolve('data:image/png;base64,AAAA')),
     },
     scripting: { executeScript: vi.fn<(o: unknown) => Promise<unknown[]>>(() => Promise.resolve([])) },
@@ -66,8 +74,16 @@ export const makeFakeChrome = (options: { id?: string; senderId?: string; sender
       setPanelBehavior: vi.fn<(o: unknown) => Promise<void>>(() => Promise.resolve()),
       open: vi.fn<(o: unknown) => Promise<void>>(() => Promise.resolve()),
     },
-    commands: { onCommand },
-    action: { onClicked },
+    commands: {
+      onCommand,
+      getAll: vi.fn<() => Promise<{ name?: string; shortcut?: string }[]>>(() =>
+        Promise.resolve([{ name: 'pick', shortcut: '⌥⇧F' }]),
+      ),
+    },
+    action: {
+      onClicked,
+      getUserSettings: vi.fn<() => Promise<{ isOnToolbar: boolean }>>(() => Promise.resolve({ isOnToolbar: false })),
+    },
   };
   return api;
 };

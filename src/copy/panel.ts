@@ -55,6 +55,18 @@ export const panel = {
     dragHandle: 'Drag to reorder',
     rowLabel: (id: string, label: string): string => `${id} ${label}`,
   },
+  checklist: {
+    title: 'Get started',
+    progress: (done: number, total: number): string => `${done}/${total}`,
+    progressLabel: (done: number, total: number): string => `${done} of ${total} steps done`,
+    steps: {
+      picked: 'Pick an element on the page',
+      noted: 'Save your first note',
+      exported: 'Copy or download the Markdown',
+    },
+    done: 'done',
+    dismiss: 'Hide checklist',
+  },
   states: {
     firstRun: {
       line: 'Pick an element or select text on the page to leave your first note.',

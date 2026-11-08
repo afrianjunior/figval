@@ -12,6 +12,13 @@ export interface ExportCounts {
   readonly filtered: number;
 }
 
+/** First-run checklist; null once every step is done or the user closed it. */
+export interface ChecklistVm {
+  readonly picked: boolean;
+  readonly noted: boolean;
+  readonly exported: boolean;
+}
+
 export interface Shell {
   readonly header: { readonly sessionId: SessionId | null; readonly sessionName: string | null; readonly count: number };
   readonly toolbar: {
@@ -33,6 +40,7 @@ export interface Shell {
   readonly pendingDelete: PendingDelete | null;
   readonly errors: Readonly<Partial<Record<ErrorKey, ErrorTag>>>;
   readonly flashId: string | null;
+  readonly checklist: ChecklistVm | null;
 }
 
 export interface RowVm {

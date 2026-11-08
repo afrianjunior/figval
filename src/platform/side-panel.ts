@@ -3,7 +3,7 @@ import { chromeApi } from './chrome-api';
 import { TestRecorder } from './test-driver';
 
 export interface SidePanelService {
-  /** `openPanelOnActionClick: true` — toolbar icon also opens the panel (§9). */
+  /** Background passes false so `action.onClicked` fires; ActionLive opens the panel itself. */
   readonly setPanelBehavior: (openPanelOnActionClick: boolean) => Effect.Effect<void>;
   readonly open: (tabId: number) => Effect.Effect<void>;
 }

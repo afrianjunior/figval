@@ -5,6 +5,7 @@ import { ClipboardLive, ClipboardTest } from './clipboard';
 import { ClockFixed, ClockLive } from './clock';
 import { CommandsLive, CommandsTest } from './commands';
 import { DownloadLive, DownloadTest } from './download';
+import { ExtensionLive, ExtensionTest, type ExtensionTestConfig } from './extension';
 import { IdsLive, IdsSequence } from './ids';
 import { PermissionsLive, PermissionsTest, type PermissionsTestConfig } from './permissions';
 import { ScriptingLive, ScriptingTest, type ScriptingTestConfig } from './scripting';
@@ -29,6 +30,7 @@ export const PlatformLive = Layer.mergeAll(
   SidePanelLive,
   CommandsLive,
   ActionLive,
+  ExtensionLive,
 );
 
 export interface PlatformTestConfig {
@@ -40,6 +42,7 @@ export interface PlatformTestConfig {
   readonly capture?: CaptureTestConfig;
   readonly clipboard?: ClipboardTestConfig;
   readonly download?: DownloadTestConfig;
+  readonly extension?: ExtensionTestConfig;
 }
 
 /** Every platform service backed by test layers; also provides TestRecorder and TestDriver. */
@@ -57,6 +60,7 @@ export const PlatformTest = (config: PlatformTestConfig = {}) => {
     SidePanelTest,
     CommandsTest,
     ActionTest,
+    ExtensionTest(config.extension),
   );
   return Layer.provideMerge(services, base);
 };

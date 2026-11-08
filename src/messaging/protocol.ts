@@ -14,6 +14,10 @@ export const SettingsPatch = Schema.partial(
     screenshots: Schema.Boolean,
     activeSessionId: Schema.NullOr(SessionId),
     lastTooltipTab: TooltipTab,
+    lastForceApply: Schema.Boolean,
+    exportedOnce: Schema.Boolean,
+    checklistDismissed: Schema.Boolean,
+    tooltipHintSeen: Schema.Boolean,
   }),
 );
 export type SettingsPatch = typeof SettingsPatch.Type;

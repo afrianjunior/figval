@@ -27,6 +27,14 @@ export const Settings = Schema.Struct({
   screenshots: Schema.Boolean,
   activeSessionId: Schema.NullOr(SessionId),
   lastTooltipTab: TooltipTab,
+  /** Default for "Let the agent apply this" on the next new note; older saves lack it. */
+  lastForceApply: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  /** Onboarding checklist: set by the first copy or download; older saves lack it. */
+  exportedOnce: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  /** Onboarding checklist closed by the user. */
+  checklistDismissed: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  /** First-tooltip shortcut hint closed or seen once. */
+  tooltipHintSeen: Schema.optionalWith(Schema.Boolean, { default: () => false }),
 });
 export type Settings = typeof Settings.Type;
 
@@ -36,6 +44,10 @@ export const defaultSettings: Settings = {
   screenshots: true,
   activeSessionId: null,
   lastTooltipTab: 'comment',
+  lastForceApply: false,
+  exportedOnce: false,
+  checklistDismissed: false,
+  tooltipHintSeen: false,
 };
 
 export const Session = Schema.Struct({

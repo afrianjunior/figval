@@ -133,6 +133,20 @@
 .fv-tip__note--warn {
   color: var(--c-propose);
 }
+.fv-tip__hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--c-selected);
+}
+.fv-tip__hint-text {
+  margin: 0;
+  flex: 1;
+  line-height: 1.45;
+}
 .fv-tip__resume {
   display: flex;
   align-items: center;

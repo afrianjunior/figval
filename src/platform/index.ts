@@ -16,4 +16,6 @@ export * from './ids';
 export * from './side-panel';
 export * from './commands';
 export * from './action';
+export * from './extension';
+export { primeEarlyEvents } from './early-events';
 export * from './layers';

@@ -9,6 +9,7 @@ import { NoteList } from './NoteList';
 import { SearchBar } from './SearchBar';
 import { Sessions } from './Sessions';
 import { Settings } from './Settings';
+import { Checklist } from './Checklist';
 import { EmptySessionView, FirstRunView, LoadingView, NoResultsView } from './States';
 import { StripBar } from './StripBar';
 import { Toasts } from './Toasts';
@@ -45,6 +46,7 @@ function ReadyView({ panel, searchRef }: { readonly panel: ReadyState; readonly 
       {panel.showSearch ? <SearchBar ref={searchRef} search={panel.search} filters={panel.filters} /> : null}
       <Stage shell={panel.shell} view="Ready">
         <main className="fvp-scroll">
+          <Checklist checklist={panel.shell.checklist} />
           {panel.noResults === null ? (
             <NoteList panel={panel} />
           ) : (
@@ -107,6 +109,7 @@ export function App({ store }: AppProps) {
               <Header header={p.shell.header} />
               <Stage shell={p.shell} view="FirstRun">
                 <main className="fvp-scroll">
+                  <Checklist checklist={p.shell.checklist} />
                   <FirstRunView
                     unsupported={p.unsupported}
                     disabled={p.shell.toolbar.pickDisabled}
@@ -123,6 +126,7 @@ export function App({ store }: AppProps) {
               <Toolbar shell={p.shell} />
               <Stage shell={p.shell} view="EmptySession">
                 <main className="fvp-scroll">
+                  <Checklist checklist={p.shell.checklist} />
                   <EmptySessionView />
                 </main>
               </Stage>

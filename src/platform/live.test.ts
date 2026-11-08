@@ -139,23 +139,22 @@ describe('PermissionsLive', () => {
   const ensure = (origin = 'https://a.test') =>
     Effect.provide(Effect.flatMap(Permissions, (p) => Effect.either(p.ensureOrigin(origin))), PermissionsLive);
 
-  it('does not prompt when the origin is already granted', async () => {
-    fake.permissions.contains.mockResolvedValueOnce(true);
-    expect((await Effect.runPromise(ensure()))._tag).toBe('Right');
-    expect(fake.permissions.request).not.toHaveBeenCalled();
-  });
-
-  it('requests the origin pattern when missing', async () => {
+  it('requests the origin pattern directly, without awaiting contains() first', async () => {
     expect((await Effect.runPromise(ensure()))._tag).toBe('Right');
     expect(fake.permissions.request).toHaveBeenCalledWith({ origins: ['https://a.test/*'] });
+    expect(fake.permissions.contains).not.toHaveBeenCalled();
+  });
+
+  it('calls request() synchronously so the click gesture is still live', () => {
+    const service = Effect.runSync(Effect.provide(Permissions, PermissionsLive));
+    Effect.runFork(service.ensureOrigin('https://a.test'));
+    expect(fake.permissions.request).toHaveBeenCalledTimes(1);
   });
 
   it('denies when the prompt is declined or throws', async () => {
     fake.permissions.request.mockResolvedValueOnce(false);
     const declined = await Effect.runPromise(ensure());
     expect(declined._tag === 'Left' && declined.left).toMatchObject({ _tag: 'PermissionDenied', origin: 'https://a.test' });
-    fake.permissions.contains.mockRejectedValueOnce(new Error('x'));
-    expect((await Effect.runPromise(ensure()))._tag).toBe('Left');
     fake.permissions.request.mockRejectedValueOnce(new Error('x'));
     expect((await Effect.runPromise(ensure()))._tag).toBe('Left');
   });
@@ -276,11 +275,11 @@ describe('DownloadLive, SidePanelLive, ClockLive, IdsLive', () => {
   it('configures and opens the side panel', async () => {
     await Effect.runPromise(
       Effect.provide(
-        Effect.flatMap(SidePanel, (s) => Effect.zipRight(s.setPanelBehavior(true), s.open(3))),
+        Effect.flatMap(SidePanel, (s) => Effect.zipRight(s.setPanelBehavior(false), s.open(3))),
         SidePanelLive,
       ),
     );
-    expect(fake.sidePanel.setPanelBehavior).toHaveBeenCalledWith({ openPanelOnActionClick: true });
+    expect(fake.sidePanel.setPanelBehavior).toHaveBeenCalledWith({ openPanelOnActionClick: false });
     expect(fake.sidePanel.open).toHaveBeenCalledWith({ tabId: 3 });
   });
 
@@ -337,6 +336,8 @@ describe('CommandsLive and ActionLive', () => {
       ),
     );
     expect(tabs).toEqual([{ id: 3, url: 'https://a.test/', title: '', windowId: 9 }]);
+    // Opened inside the click listener itself, so Chrome still sees the user gesture.
+    expect(fake.sidePanel.open).toHaveBeenCalledWith({ windowId: 9 });
     expect(fake.action.onClicked.listeners.size).toBe(0);
   });
 });

@@ -1,5 +1,6 @@
 export { PanelState, Strip, type PanelStateTag } from './panel-state';
 export type {
+  ChecklistVm,
   ExportCounts,
   GroupVm,
   HelperKey,

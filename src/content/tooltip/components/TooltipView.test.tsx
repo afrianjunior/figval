@@ -67,6 +67,18 @@ describe('default tab', () => {
 });
 
 describe('TooltipView', () => {
+  it('shows the first-note hint and closes it', async () => {
+    setup({ showHint: true });
+    expect(screen.getByRole('note')).toHaveTextContent(t.hint.body);
+    await userEvent.click(screen.getByRole('button', { name: t.hint.dismiss }));
+    expect(screen.queryByRole('note')).toBeNull();
+  });
+
+  it('has no hint by default', () => {
+    setup();
+    expect(screen.queryByRole('note')).toBeNull();
+  });
+
   it('shows the provisional id and a dialog label', () => {
     setup();
     expect(screen.getByRole('dialog', { name: 'FV-2' })).toBeInTheDocument();

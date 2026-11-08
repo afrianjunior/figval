@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, PubSub, Ref } from 'effect';
 import type { TabId } from '../domain';
+import type { InstallReason } from './extension';
 import type { TabInfo, TabUpdate } from './types';
 
 export interface RecordedCall {
@@ -34,6 +35,7 @@ export interface TestDriverService {
   readonly updateEvents: PubSub.PubSub<TabUpdate>;
   readonly commandEvents: PubSub.PubSub<string>;
   readonly actionEvents: PubSub.PubSub<TabInfo>;
+  readonly installEvents: PubSub.PubSub<InstallReason>;
   readonly addTab: (tab: TabInfo) => Effect.Effect<void>;
   readonly activate: (id: TabId) => Effect.Effect<void>;
   readonly navigate: (id: TabId, url: string) => Effect.Effect<void>;
@@ -41,6 +43,7 @@ export interface TestDriverService {
   readonly removeTab: (id: TabId) => Effect.Effect<void>;
   readonly emitCommand: (name: string) => Effect.Effect<void>;
   readonly clickAction: (id: TabId) => Effect.Effect<void>;
+  readonly emitInstall: (reason: InstallReason) => Effect.Effect<void>;
 }
 
 export class TestDriver extends Context.Tag('figval/platform/TestDriver')<TestDriver, TestDriverService>() {}
@@ -53,6 +56,7 @@ const makeDriver = (initial: readonly TabInfo[], active: TabId | null) =>
     const updateEvents = yield* PubSub.unbounded<TabUpdate>();
     const commandEvents = yield* PubSub.unbounded<string>();
     const actionEvents = yield* PubSub.unbounded<TabInfo>();
+    const installEvents = yield* PubSub.unbounded<InstallReason>();
     const find = (id: TabId) =>
       Ref.get(state).pipe(Effect.map((s) => s.tabs.find((t) => t.id === id)));
     const publishIfActive = (id: TabId) =>
@@ -69,6 +73,7 @@ const makeDriver = (initial: readonly TabInfo[], active: TabId | null) =>
       updateEvents,
       commandEvents,
       actionEvents,
+      installEvents,
       addTab: (tab) => Ref.update(state, (s) => ({ ...s, tabs: [...s.tabs, tab] })),
       activate: (id) =>
         Ref.update(state, (s) => ({ ...s, active: id })).pipe(Effect.zipRight(publishIfActive(id))),
@@ -83,6 +88,7 @@ const makeDriver = (initial: readonly TabInfo[], active: TabId | null) =>
           active: s.active === id ? null : s.active,
         })).pipe(Effect.zipRight(PubSub.publish(removedEvents, id)), Effect.asVoid),
       emitUpdate: (update) => PubSub.publish(updateEvents, update).pipe(Effect.asVoid),
+      emitInstall: (reason) => PubSub.publish(installEvents, reason).pipe(Effect.asVoid),
       emitCommand: (name) => PubSub.publish(commandEvents, name).pipe(Effect.asVoid),
       clickAction: (id) =>
         find(id).pipe(

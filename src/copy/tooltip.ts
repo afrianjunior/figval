@@ -84,6 +84,10 @@ export const tooltip = {
     saveFailed: "The note wasn't saved. Your changes are still here, so try again.",
     discardConfirm: 'Press Esc again to discard',
   },
+  hint: {
+    body: 'Describe the change here, or open Edit to change the text and styles on the page. Save adds this to your notes.',
+    dismiss: 'Got it',
+  },
   draft: {
     resume: (id: string): string => `Resume draft ${id}?`,
     resumeAction: 'Resume',

@@ -553,6 +553,23 @@ describe('export', () => {
     await b.waitFor((m) => m.ui.flashId === null);
   });
 
+  it('records the first export once for the onboarding checklist', async () => {
+    const b = await start({ ...withTab, now: NOW }, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2 && m.activeTab !== null);
+    await b.store.actions.exportDownload();
+    await b.waitFor((m) => m.settings.exportedOnce);
+    await b.store.actions.exportCopy();
+    const updates = b.harness.toBackground.filter((r) => r._tag === 'SettingsUpdate');
+    expect(updates).toEqual([{ _tag: 'SettingsUpdate', patch: { exportedOnce: true } }]);
+  });
+
+  it('does not record a failed export', async () => {
+    const b = await start({ ...withTab, clipboard: { deny: true } }, {}, seed);
+    await b.waitFor((m) => m.notes.length === 2);
+    await b.store.actions.exportCopy();
+    expect(b.harness.toBackground.filter((r) => r._tag === 'SettingsUpdate')).toEqual([]);
+  });
+
   it('keeps a ClipboardDenied error so the UI can offer the download', async () => {
     const b = await start({ ...withTab, clipboard: { deny: true } }, {}, seed);
     await b.waitFor((m) => m.notes.length === 2);

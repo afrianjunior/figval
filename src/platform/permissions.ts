@@ -13,19 +13,14 @@ export class Permissions extends Context.Tag('figval/platform/Permissions')<Perm
 export const originPattern = (origin: string): string => `${origin.replace(/\/+$/, '')}/*`;
 
 export const PermissionsLive: Layer.Layer<Permissions> = Layer.succeed(Permissions, {
+  // request() must be the first await: any earlier await (e.g. contains()) drops the click's user
+  // gesture and Chrome rejects the prompt. request() resolves true without a prompt when already held.
   ensureOrigin: (origin) => {
-    const request = { origins: [originPattern(origin)] };
     const deny = () => new PermissionDenied({ origin });
-    return Effect.tryPromise({ try: () => chromeApi().permissions.contains(request), catch: deny }).pipe(
-      Effect.flatMap((has) =>
-        has
-          ? Effect.void
-          : Effect.tryPromise({ try: () => chromeApi().permissions.request(request), catch: deny }).pipe(
-              Effect.filterOrFail((granted) => granted, deny),
-              Effect.asVoid,
-            ),
-      ),
-    );
+    return Effect.tryPromise({
+      try: () => chromeApi().permissions.request({ origins: [originPattern(origin)] }),
+      catch: deny,
+    }).pipe(Effect.filterOrFail((granted) => granted, deny), Effect.asVoid);
   },
 });
 

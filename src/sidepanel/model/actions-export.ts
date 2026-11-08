@@ -1,5 +1,6 @@
 import { Effect, Option } from 'effect';
 import { exportFilename, render } from '../../markdown';
+import { Messenger } from '../../messaging';
 import { Clipboard, Download } from '../../platform';
 import { ShotStore } from '../../storage';
 import { ShotStoreError, type NoteId } from '../../domain';
@@ -25,6 +26,13 @@ const renderExport = (ctx: Ctx): Effect.Effect<Option.Option<Rendered>, never, P
     return Option.some({ text, filename: exportFilename(notes, now) });
   });
 
+/** Ticks the onboarding checklist's export step once; a failure only costs the tick, so it is logged. */
+const markExported = (ctx: Ctx): Effect.Effect<void, never, PanelEnv> =>
+  Effect.gen(function* () {
+    if ((yield* getState(ctx)).settings.exportedOnce) return;
+    yield* (yield* Messenger).toBackground({ _tag: 'SettingsUpdate', patch: { exportedOnce: true } });
+  }).pipe(Effect.catchAll((cause) => Effect.logWarning('exportedOnce update failed', cause)));
+
 export const exportCopy = (ctx: Ctx): Effect.Effect<void, never, PanelEnv> =>
   Effect.gen(function* () {
     const rendered = yield* renderExport(ctx);
@@ -33,6 +41,7 @@ export const exportCopy = (ctx: Ctx): Effect.Effect<void, never, PanelEnv> =>
     yield* clipboard.writeText(rendered.value.text);
     yield* clearError(ctx, 'export');
     yield* flash(ctx, 'export-copy');
+    yield* markExported(ctx);
   }).pipe(Effect.catchAll(failTo(ctx, 'export')));
 
 export const exportDownload = (ctx: Ctx): Effect.Effect<void, never, PanelEnv> =>
@@ -43,6 +52,7 @@ export const exportDownload = (ctx: Ctx): Effect.Effect<void, never, PanelEnv> =
     yield* download.markdown(rendered.value.filename, rendered.value.text);
     yield* clearError(ctx, 'export');
     yield* flash(ctx, 'export-download');
+    yield* markExported(ctx);
   }).pipe(Effect.catchAll(failTo(ctx, 'export')));
 
 export const copyShot = (ctx: Ctx, noteId: NoteId, which: 'before' | 'after'): Effect.Effect<void, never, PanelEnv> =>

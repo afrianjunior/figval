@@ -79,7 +79,11 @@ function DetailBody({ panel }: { readonly panel: DetailState }) {
         <Checkbox
           label={t.letAgentApply}
           checked={note.forceApply}
-          onChange={(e) => void actions.updateNote(note.id, { forceApply: e.target.checked })}
+          onChange={(e) => {
+            const forceApply = e.target.checked;
+            void actions.updateNote(note.id, { forceApply });
+            void actions.updateSettings({ lastForceApply: forceApply });
+          }}
         />
       ) : null}
       <DetailChanges edits={note.edits} />

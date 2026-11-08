@@ -20,6 +20,16 @@ describe('records', () => {
     expect(Schema.decodeUnknownSync(Settings)(defaultSettings)).toEqual(defaultSettings);
     expect(defaultSettings.preset).toBe('reviewer');
   });
+  it('decodes settings saved before lastForceApply existed as unchecked', () => {
+    const legacy = Object.fromEntries(Object.entries(defaultSettings).filter(([k]) => k !== 'lastForceApply'));
+    expect(Schema.decodeUnknownSync(Settings)(legacy).lastForceApply).toBe(false);
+  });
+  it('decodes settings saved before onboarding existed as a fresh install', () => {
+    const onboardingKeys = ['exportedOnce', 'checklistDismissed', 'tooltipHintSeen'];
+    const legacy = Object.fromEntries(Object.entries(defaultSettings).filter(([k]) => !onboardingKeys.includes(k)));
+    const decoded = Schema.decodeUnknownSync(Settings)(legacy);
+    expect([decoded.exportedOnce, decoded.checklistDismissed, decoded.tooltipHintSeen]).toEqual([false, false, false]);
+  });
   it('rejects wrong schemaVersion', () => {
     expect(() => Schema.decodeUnknownSync(Settings)({ ...defaultSettings, schemaVersion: 2 })).toThrow();
   });

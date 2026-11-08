@@ -59,7 +59,8 @@ const open = async (o: RigOptions = {}): Promise<Rig> => {
   const stored = savedNote(el);
   const toBackground = vi.fn(() => o.reply ?? Effect.succeed(stored));
   const registry = makeEditRegistry(document);
-  const settings = { ...defaultSettings, activeSessionId: baseNote.sessionId, ...o.settings };
+  // A user who has seen the first-note hint, so message counts stay about the note itself.
+  const settings = { ...defaultSettings, activeSessionId: baseNote.sessionId, tooltipHintSeen: true, ...o.settings };
   const scope = Effect.runSync(Scope.make());
   const handle = await Effect.runPromise(
     openSession({
@@ -199,6 +200,41 @@ describe('tooltip session', () => {
       _tag: 'SettingsUpdate',
       patch: { lastTooltipTab: 'edit' },
     });
+  });
+
+  it('starts a new note with the last force-apply choice', async () => {
+    rig = await open({ settings: { lastForceApply: true } });
+    expect(ui().getByRole('checkbox', { name: t.comment.forceApply })).toBeChecked();
+  });
+
+  it('remembers the force-apply choice for the next note', async () => {
+    rig = await open();
+    await userEvent.click(ui().getByRole('checkbox', { name: t.comment.forceApply }));
+    expect(rig.toBackground).toHaveBeenCalledWith({
+      _tag: 'SettingsUpdate',
+      patch: { lastForceApply: true },
+    });
+  });
+
+  it('keeps a reopened note at its own force-apply value', async () => {
+    rig = await open({ mode: 'reopen', settings: { lastForceApply: true } });
+    expect(ui().getByRole('checkbox', { name: t.comment.forceApply })).not.toBeChecked();
+  });
+
+  it('shows the first-note hint once and remembers it was seen', async () => {
+    rig = await open({ settings: { tooltipHintSeen: false } });
+    expect(ui().getByRole('note')).toHaveTextContent(t.hint.body);
+    expect(rig.toBackground).toHaveBeenCalledWith({ _tag: 'SettingsUpdate', patch: { tooltipHintSeen: true } });
+  });
+
+  it('skips the hint once it was seen', async () => {
+    rig = await open({ settings: { tooltipHintSeen: true } });
+    expect(ui().queryByRole('note')).toBeNull();
+  });
+
+  it('skips the hint when reopening a saved note', async () => {
+    rig = await open({ mode: 'reopen', settings: { tooltipHintSeen: false } });
+    expect(ui().queryByRole('note')).toBeNull();
   });
 
   it('prefills and sends NoteUpdate when reopening', async () => {

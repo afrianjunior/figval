@@ -2,6 +2,7 @@ import { hasEdits, normalizePageKey, type Note } from '../../domain';
 import {
   PanelState,
   Strip,
+  type ChecklistVm,
   type SessionRowVm,
   type Shell,
 } from './panel-state';
@@ -43,6 +44,14 @@ const footerOf = (state: ModelState, noteCount: number): Shell['footer'] => {
   };
 };
 
+/** A session is created on the first saved note, so its existence means "noted". */
+const checklistOf = (state: ModelState): ChecklistVm | null => {
+  if (state.settings.checklistDismissed) return null;
+  const noted = state.sessions.length > 0;
+  const steps = { picked: noted || state.activation.active, noted, exported: state.settings.exportedOnce };
+  return steps.picked && steps.noted && steps.exported ? null : steps;
+};
+
 export const shellOf = (state: ModelState): Shell => {
   const session = activeSessionOf(state);
   const count = visibleNotes(state).length;
@@ -59,6 +68,7 @@ export const shellOf = (state: ModelState): Shell => {
     pendingDelete: state.ui.pendingDelete,
     errors: state.ui.errors,
     flashId: state.ui.flashId,
+    checklist: checklistOf(state),
   };
 };
 

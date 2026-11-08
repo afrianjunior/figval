@@ -99,6 +99,19 @@ describe('PanelState variants', () => {
     expect(screen.getByText('main > button.cta')).toBeVisible();
   });
 
+  it('Detail force-apply toggle updates the note and remembers the choice', async () => {
+    const note = mkNote(7);
+    const fake = mount(
+      withUi(baseModel({ notes: [note], settings: { ...defaultSettings, activeSessionId: session.id } }), {
+        view: 'detail',
+        detailId: note.id,
+      }),
+    );
+    await userEvent.click(screen.getByLabelText(t.detail.letAgentApply));
+    expect(fake.actions.updateNote).toHaveBeenCalledWith(note.id, { forceApply: true });
+    expect(fake.actions.updateSettings).toHaveBeenCalledWith({ lastForceApply: true });
+  });
+
   it('Detail groups color, padding and hidden into Fill, Layout and Visibility sections', () => {
     const base = mkNote(6);
     const note = mkNote(6, {
@@ -509,3 +522,29 @@ describe('keyboard, toasts and dialog', () => {
     expect(screen.getAllByRole('button', { name: new RegExp('Button') })[1]).toHaveFocus();
   });
 });
+
+describe('onboarding checklist', () => {
+  const tc = copy.panel.checklist;
+
+  it('shows the steps on first run with nothing ticked', () => {
+    mount(baseModel({ settings: defaultSettings, sessions: [], activation: initialState.activation }));
+    const card = screen.getByRole('region', { name: tc.title });
+    expect(within(card).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(card).getByText(tc.progressLabel(0, 3))).toBeTruthy();
+  });
+
+  it('ticks pick and note once a session exists and hides with the close button', async () => {
+    const fake = mount(baseModel({ settings: { ...defaultSettings, activeSessionId: session.id } }));
+    const card = screen.getByRole('region', { name: tc.title });
+    expect(within(card).getByText(tc.progressLabel(2, 3))).toBeTruthy();
+    expect(within(card).getAllByText(`, ${tc.done}`)).toHaveLength(2);
+    await userEvent.click(within(card).getByRole('button', { name: tc.dismiss }));
+    expect(fake.actions.updateSettings).toHaveBeenCalledWith({ checklistDismissed: true });
+  });
+
+  it('stays away once every step is done', () => {
+    mount(baseModel({ settings: { ...defaultSettings, activeSessionId: session.id, exportedOnce: true } }));
+    expect(screen.queryByRole('region', { name: tc.title })).toBeNull();
+  });
+});
+

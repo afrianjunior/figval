@@ -1,8 +1,8 @@
 import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from 'effect';
 import { TabId } from '../domain';
 import { Messenger, MessengerLive } from '../messaging';
-import { Action, Commands, PlatformLive, SidePanel, Tabs } from '../platform';
-import { SessionStore, StorageLive } from '../storage';
+import { Action, Commands, Extension, PlatformLive, SidePanel, Tabs, primeEarlyEvents } from '../platform';
+import { SessionRepo, SessionStore, SettingsRepo, StorageLive } from '../storage';
 import {
   clearActivation,
   clearIfOriginChanged,
@@ -11,10 +11,13 @@ import {
 } from './activation';
 import { missingKey } from './keys';
 import { asHandler, type HandleEnv } from './router';
+import { updateSettings } from './sessions';
 
 export const BackgroundLive = Layer.mergeAll(StorageLive, PlatformLive, MessengerLive);
 
 const PICK_COMMAND = 'pick';
+/** Built from src/entrypoints/welcome. */
+export const WELCOME_PAGE = '/welcome.html';
 
 const logged = <E>(label: string) =>
   Effect.catchAll((e: E) => Effect.logWarning(`${label} failed`, e));
@@ -37,6 +40,24 @@ const onPickCommand = Stream.unwrap(Effect.map(Commands, (c) => c.onCommand)).pi
       logged('command'),
     ),
   ),
+);
+
+/**
+ * Users from before onboarding decode the new flags as false. Having a session means they already
+ * picked and noted, so skip the checklist and the first-note hint for them.
+ */
+const onboardExistingUser = Effect.gen(function* () {
+  const { items } = yield* (yield* SessionRepo).list;
+  if (items.length === 0) return;
+  yield* updateSettings({ checklistDismissed: true, tooltipHintSeen: true });
+});
+
+/** A fresh install gets the welcome tab; an update only migrates; Chrome restarts stay quiet. */
+const onInstall = Stream.unwrap(Effect.map(Extension, (e) => e.onInstalled)).pipe(
+  Stream.mapEffect((reason): Effect.Effect<void, never, Extension | SessionRepo | SettingsRepo> => {
+    if (reason === 'install') return Effect.flatMap(Extension, (e) => e.openPage(WELCOME_PAGE));
+    return reason === 'update' ? onboardExistingUser.pipe(logged('onboarding migration')) : Effect.void;
+  }),
 );
 
 const onTabRemoved = Stream.unwrap(Effect.map(Tabs, (t) => t.onRemoved)).pipe(
@@ -84,11 +105,13 @@ export const program = Effect.gen(function* () {
   const context = yield* Effect.context<HandleEnv>();
   yield* (yield* Messenger).serve('background', asHandler(context));
   yield* (yield* SessionStore).allowContentAccess.pipe(logged('content access'));
-  yield* (yield* SidePanel).setPanelBehavior(true);
+  // false, so Chrome fires action.onClicked: the click grants activeTab and injects the picker there.
+  yield* (yield* SidePanel).setPanelBehavior(false);
   yield* Effect.all(
     [
       Stream.runDrain(onToolbarClick),
       Stream.runDrain(onPickCommand),
+      Stream.runDrain(onInstall),
       Stream.runDrain(onTabRemoved),
       Stream.runDrain(onNavigation),
     ],
@@ -97,6 +120,8 @@ export const program = Effect.gen(function* () {
 }).pipe(Effect.scoped);
 
 export function main(): void {
+  // Synchronous, before any await: catches the install / click / command that woke the worker.
+  primeEarlyEvents();
   const runtime = ManagedRuntime.make(BackgroundLive);
   runtime.runFork(program);
 }

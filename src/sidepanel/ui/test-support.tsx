@@ -74,7 +74,8 @@ export const session = mkSession('aaaa', { name: 'Landing revamp' });
 export const baseModel = (over: Partial<ModelState> = {}): ModelState => ({
   ...initialState,
   loaded: { settings: true, sessions: true },
-  settings: { ...defaultSettings, activeSessionId: session.id },
+  // An established user: the onboarding checklist is finished, so it stays out of layout tests.
+  settings: { ...defaultSettings, activeSessionId: session.id, exportedOnce: true },
   sessions: [session],
   activeTab: TAB,
   activation: { ...initialState.activation, active: true },
